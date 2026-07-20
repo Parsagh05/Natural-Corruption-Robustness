@@ -1,0 +1,48 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments and local environment files
+.venv/
+venv/
+env/
+.env
+.env.*
+!.env.example
+
+# Jupyter-generated files
+.ipynb_checkpoints/
+
+# IDE and operating-system metadata
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Evaluation outputs and caches
+outputs/
+corruption_cache/
+checkpoints/
+*.pth
+*.pt
+*.ckpt
+*.safetensors
+*.zip
+
+# Local datasets and external model checkouts
+data/
+datasets/
+AnomalyCLIP/
+AF-CLIP/
+
+# Temporary download files
+*.download
+*.tmp
+
