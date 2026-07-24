@@ -16,8 +16,8 @@ The registry also names planned models, but only the three wrappers above have e
 .
 |-- harness/                         Core datasets, model wrappers, metrics, runner, and storage
 |-- imagenet_c/                      Vendored corruption implementations and frost assets
-|-- persistent_corruptions.csv       Fixed VisA categorized-corruption assignments
-|-- mvtec_persistent_corruptions.csv Fixed MVTec categorized-corruption assignments
+|-- visa_corruption_plan.csv         Fixed VisA categorized-corruption assignments
+|-- mvtec_corruption_plan.csv        Fixed MVTec categorized-corruption assignments
 |-- kaggle_final_*.ipynb             Kaggle evaluation launchers
 |-- kaggle_train_aaclip.ipynb        Kaggle AA-CLIP training launcher
 `-- AA-CLIP/                         Checked-in summary CSV results
@@ -25,9 +25,9 @@ The registry also names planned models, but only the three wrappers above have e
 
 ## Evaluation protocol
 
-The default concrete corruptions are Gaussian, shot, and impulse noise; defocus, motion, and zoom blur; brightness; and contrast. Severity levels default to 1-3.
+The default concrete corruptions are Gaussian, shot, and impulse noise; defocus, motion, and zoom blur; brightness; and contrast. Severity levels default to 1-4.
 
-The optional categorized protocol groups operations into `noise`, `blur`, `photometric`, and `geometric`. It requires the matching persistent CSV so each image receives a deterministic, balanced assignment. Geometric operations transform the image and its mask with the same parameters.
+The optional categorized protocol groups operations into `noise`, `blur`, `photometric`, and `geometric`. It requires the matching dataset corruption-plan CSV so each image receives a deterministic, balanced assignment. Geometric operations transform the image and its mask with the same parameters.
 
 Metrics include image-level AUROC, average precision, and F1-max, plus pixel-level AUROC, F1-max, and AUPRO. Pixel metrics are evaluated at 518 x 518; AUPRO uses an FPR limit of 0.3.
 

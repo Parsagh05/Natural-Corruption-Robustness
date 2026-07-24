@@ -34,7 +34,7 @@ CATEGORIZED_CORRUPTION_TYPES: List[str] = [
     "geometric",
 ]
 
-SEVERITY_LEVELS: List[int] = [1, 2, 3]
+SEVERITY_LEVELS: List[int] = [1, 2, 3, 4]
 
 # Model registry
 LEARNABLE_MODELS: List[str] = [

@@ -16,7 +16,7 @@ from typing import Dict, Tuple
 import numpy as np
 from PIL import Image
 
-from .config import CORRUPTION_TYPES, SEVERITY_LEVELS, DatasetConfig, HarnessConfig
+from .config import DatasetConfig, HarnessConfig
 from .metrics import (
     DEFAULT_PIXEL_METRIC_SIZE,
     compute_image_metrics,
@@ -187,8 +187,8 @@ class EvaluationHarness:
         """Load saved artifacts and compute all metrics."""
         dataset_name = dataset_config.name
 
-        for corruption_type in CORRUPTION_TYPES:
-            for severity in SEVERITY_LEVELS:
+        for corruption_type in self.config.corruption_types:
+            for severity in self.config.severity_levels:
                 for category in dataset_config.categories:
                     artifact_dir = (
                         artifacts_root
