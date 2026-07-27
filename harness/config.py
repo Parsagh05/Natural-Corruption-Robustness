@@ -5,7 +5,7 @@ config.py - Central configuration for the robustness evaluation harness.
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 
 # Global seed
@@ -35,6 +35,11 @@ CATEGORIZED_CORRUPTION_TYPES: List[str] = [
 ]
 
 SEVERITY_LEVELS: List[int] = [1, 2, 3, 4]
+
+# The optional baseline evaluates unmodified source images. Keeping this
+# separate prevents severity 0 from reaching corruption implementations,
+# which only support severities 1-5.
+CLEAN_CONDITION: Tuple[str, int] = ("clean", 0)
 
 # Model registry
 LEARNABLE_MODELS: List[str] = [
@@ -117,6 +122,7 @@ class HarnessConfig:
     corruption_seed: Optional[int] = None
     corruption_types: List[str] = field(default_factory=lambda: CORRUPTION_TYPES)
     severity_levels: List[int] = field(default_factory=lambda: SEVERITY_LEVELS)
+    include_clean: bool = True
     models: List[str] = field(default_factory=lambda: COMPLETED_MODELS)
     output_root: Path = Path("outputs")
     datasets: List[DatasetConfig] = field(default_factory=list)
@@ -129,7 +135,24 @@ class HarnessConfig:
     device: str = "cuda"
     default_map_resolution: int = 14
 
+    @property
+    def evaluation_conditions(self) -> List[Tuple[str, int]]:
+        """Return the enabled clean baseline and corrupted conditions."""
+        conditions = [CLEAN_CONDITION] if self.include_clean else []
+        conditions.extend(
+            (corruption_type, severity)
+            for corruption_type in self.corruption_types
+            if corruption_type != CLEAN_CONDITION[0]
+            for severity in self.severity_levels
+        )
+        return conditions
+
     def __post_init__(self):
+        if not self.evaluation_conditions:
+            raise ValueError(
+                "At least one evaluation condition is required: enable the "
+                "clean baseline or provide a corruption type and severity."
+            )
         if self.categorized_corruptions:
             invalid = [
                 name for name in self.corruption_types

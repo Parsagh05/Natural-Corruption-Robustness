@@ -187,80 +187,75 @@ class EvaluationHarness:
         """Load saved artifacts and compute all metrics."""
         dataset_name = dataset_config.name
 
-        for corruption_type in self.config.corruption_types:
-            for severity in self.config.severity_levels:
-                for category in dataset_config.categories:
-                    artifact_dir = (
-                        artifacts_root
-                        / model_name
-                        / dataset_name
-                        / category
-                        / corruption_type
-                        / f"level_{severity}"
-                    )
+        for corruption_type, severity in self.config.evaluation_conditions:
+            for category in dataset_config.categories:
+                artifact_dir = (
+                    artifacts_root
+                    / model_name
+                    / dataset_name
+                    / category
+                    / corruption_type
+                    / f"level_{severity}"
+                )
 
-                    if not artifact_dir.exists():
-                        continue
+                if not artifact_dir.exists():
+                    continue
 
-                    scores_path = artifact_dir / "raw_scores.npy"
-                    maps_path = artifact_dir / "lowres_maps.npy"
-                    meta_path = artifact_dir / "metadata.json"
+                scores_path = artifact_dir / "raw_scores.npy"
+                maps_path = artifact_dir / "lowres_maps.npy"
+                meta_path = artifact_dir / "metadata.json"
 
-                    if not all(p.exists() for p in [scores_path, maps_path, meta_path]):
-                        continue
+                if not all(p.exists() for p in [scores_path, maps_path, meta_path]):
+                    continue
 
-                    scores = np.load(scores_path)
-                    lowres_maps = np.load(maps_path)
-                    with open(meta_path, "r") as f:
-                        metadata = json.load(f)
+                scores = np.load(scores_path)
+                lowres_maps = np.load(maps_path)
+                with open(meta_path, "r") as f:
+                    metadata = json.load(f)
 
-                    labels = np.array([m["label"] for m in metadata])
-                    image_metrics = compute_image_metrics(labels, scores)
+                labels = np.array([m["label"] for m in metadata])
+                image_metrics = compute_image_metrics(labels, scores)
 
-                    if lowres_maps.ndim == 3 and lowres_maps.shape[0] > 0:
-                        metric_size = DEFAULT_PIXEL_METRIC_SIZE
-                        resized_masks = []
-                        resized_maps = []
-                        for meta in metadata:
-                            mask_path = meta.get("mask_path")
-                            if mask_path and Path(mask_path).exists():
-                                mask = np.array(Image.open(mask_path).convert("L"))
-                                mask = (mask > 0).astype(np.float32)
-                                mask_resized = resize_mask(
-                                    mask, metric_size, metric_size
-                                )
-                            else:
-                                mask_resized = np.zeros(
-                                    (metric_size, metric_size), dtype=np.float32
-                                )
-                            resized_masks.append(mask_resized)
-
-                        for lowres_map in lowres_maps:
-                            resized_maps.append(
-                                resize_anomaly_map(
-                                    lowres_map, metric_size, metric_size
-                                )
+                if lowres_maps.ndim == 3 and lowres_maps.shape[0] > 0:
+                    metric_size = DEFAULT_PIXEL_METRIC_SIZE
+                    resized_masks = []
+                    resized_maps = []
+                    for meta in metadata:
+                        mask_path = meta.get("mask_path")
+                        if mask_path and Path(mask_path).exists():
+                            mask = np.array(Image.open(mask_path).convert("L"))
+                            mask = (mask > 0).astype(np.float32)
+                            mask_resized = resize_mask(mask, metric_size, metric_size)
+                        else:
+                            mask_resized = np.zeros(
+                                (metric_size, metric_size), dtype=np.float32
                             )
+                        resized_masks.append(mask_resized)
 
-                        pixel_metrics = compute_pixel_metrics(
-                            resized_masks,
-                            resized_maps,
-                            aupro_device=self.config.device,
+                    for lowres_map in lowres_maps:
+                        resized_maps.append(
+                            resize_anomaly_map(lowres_map, metric_size, metric_size)
                         )
-                    else:
-                        pixel_metrics = {
-                            "auroc_px": 0.0,
-                            "f1_px": 0.0,
-                            "aupro_px": 0.0,
-                            "threshold_px": 0.0,
-                        }
 
-                    self.record_metrics(
-                        model_name=model_name,
-                        dataset_name=dataset_name,
-                        category=category,
-                        corruption_type=corruption_type,
-                        severity=severity,
-                        pixel_metrics=pixel_metrics,
-                        image_metrics=image_metrics,
+                    pixel_metrics = compute_pixel_metrics(
+                        resized_masks,
+                        resized_maps,
+                        aupro_device=self.config.device,
                     )
+                else:
+                    pixel_metrics = {
+                        "auroc_px": 0.0,
+                        "f1_px": 0.0,
+                        "aupro_px": 0.0,
+                        "threshold_px": 0.0,
+                    }
+
+                self.record_metrics(
+                    model_name=model_name,
+                    dataset_name=dataset_name,
+                    category=category,
+                    corruption_type=corruption_type,
+                    severity=severity,
+                    pixel_metrics=pixel_metrics,
+                    image_metrics=image_metrics,
+                )

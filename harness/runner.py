@@ -19,6 +19,7 @@ from .config import (
     CORRUPTION_TYPES,
     SEVERITY_LEVELS,
     COMPLETED_MODELS,
+    CLEAN_CONDITION,
 )
 from .seed import set_global_seed
 from .corruption import apply_corruption
@@ -102,6 +103,7 @@ class RobustnessRunner:
         logger.info(
             f"Starting robustness evaluation: "
             f"{len(models)} models × {len(datasets)} datasets × "
+            f"{'1 clean baseline + ' if self.config.include_clean else ''}"
             f"{len(self.config.corruption_types)} corruptions × "
             f"{len(self.config.severity_levels)} levels"
         )
@@ -164,56 +166,66 @@ class RobustnessRunner:
 
         logger.info(f"  Dataset: {dataset_name}")
 
-        for corruption_type in self.config.corruption_types:
-            for severity in self.config.severity_levels:
-                logger.info(
-                    f"    Corruption: {corruption_type} | Level: {severity}"
-                )
+        for corruption_type, severity in self.config.evaluation_conditions:
+            is_clean = (corruption_type, severity) == CLEAN_CONDITION
+            logger.info(
+                "    Condition: clean (original images)"
+                if is_clean
+                else f"    Corruption: {corruption_type} | Level: {severity}"
+            )
 
-                level_datasets = []
-                for category in dataset_config.categories:
-                    category_dataset = AnomalyDetectionDataset(
-                        config=dataset_config,
+            level_datasets = []
+            for category in dataset_config.categories:
+                category_dataset = AnomalyDetectionDataset(
+                    config=dataset_config,
+                    corruption_type=corruption_type,
+                    severity=severity,
+                    base_seed=(
+                        self.config.seed
+                        if self.config.corruption_seed is None
+                        else self.config.corruption_seed
+                    ),
+                    category=category,
+                    corruption_cache_root=self.config.corruption_cache_root,
+                    corruption_cache_format=self.config.corruption_cache_format,
+                    categorized_corruptions=(
+                        self.config.categorized_corruptions and not is_clean
+                    ),
+                    categorized_corruption_plan=self.config.categorized_corruption_plans.get(
+                        dataset_config.name.lower()
+                    ),
+                )
+                if len(category_dataset) > 0:
+                    level_datasets.append((category, category_dataset))
+
+            total_images = sum(
+                len(category_dataset) for _, category_dataset in level_datasets
+            )
+            progress_desc = (
+                f"{dataset_name} clean"
+                if is_clean
+                else f"{dataset_name} {corruption_type} L{severity}"
+            )
+            with tqdm(
+                total=total_images,
+                desc=progress_desc,
+                unit="img",
+                leave=True,
+                dynamic_ncols=True,
+            ) as progress_bar:
+                for category, category_dataset in level_datasets:
+                    self._run_category(
+                        model_wrapper=model_wrapper,
+                        dataset_config=dataset_config,
+                        category=category,
                         corruption_type=corruption_type,
                         severity=severity,
-                        base_seed=(
-                            self.config.seed
-                            if self.config.corruption_seed is None
-                            else self.config.corruption_seed
-                        ),
-                        category=category,
-                        corruption_cache_root=self.config.corruption_cache_root,
-                        corruption_cache_format=self.config.corruption_cache_format,
-                        categorized_corruptions=self.config.categorized_corruptions,
-                        categorized_corruption_plan=self.config.categorized_corruption_plans.get(
-                            dataset_config.name.lower()
-                        ),
+                        dataset=category_dataset,
+                        progress_bar=progress_bar,
                     )
-                    if len(category_dataset) > 0:
-                        level_datasets.append((category, category_dataset))
 
-                total_images = sum(len(category_dataset) for _, category_dataset in level_datasets)
-                progress_desc = f"{dataset_name} {corruption_type} L{severity}"
-                with tqdm(
-                    total=total_images,
-                    desc=progress_desc,
-                    unit="img",
-                    leave=True,
-                    dynamic_ncols=True,
-                ) as progress_bar:
-                    for category, category_dataset in level_datasets:
-                        self._run_category(
-                            model_wrapper=model_wrapper,
-                            dataset_config=dataset_config,
-                            category=category,
-                            corruption_type=corruption_type,
-                            severity=severity,
-                            dataset=category_dataset,
-                            progress_bar=progress_bar,
-                        )
-
-                # Periodic memory cleanup
-                ArtifactStorage.cleanup_memory()
+            # Periodic memory cleanup
+            ArtifactStorage.cleanup_memory()
 
     def _run_category(
         self,
@@ -227,6 +239,7 @@ class RobustnessRunner:
     ) -> None:
         """Run inference on a single category with a specific corruption."""
         if dataset is None:
+            is_clean = (corruption_type, severity) == CLEAN_CONDITION
             dataset = AnomalyDetectionDataset(
                 config=dataset_config,
                 corruption_type=corruption_type,
@@ -239,7 +252,9 @@ class RobustnessRunner:
                 category=category,
                 corruption_cache_root=self.config.corruption_cache_root,
                 corruption_cache_format=self.config.corruption_cache_format,
-                categorized_corruptions=self.config.categorized_corruptions,
+                categorized_corruptions=(
+                    self.config.categorized_corruptions and not is_clean
+                ),
                 categorized_corruption_plan=self.config.categorized_corruption_plans.get(
                     dataset_config.name.lower()
                 ),
@@ -395,6 +410,7 @@ def run_evaluation(
     categorized_corruptions: bool = False,
     categorized_corruption_plans: Optional[Dict[str, str]] = None,
     corruption_seed: Optional[int] = None,
+    include_clean: bool = True,
 ) -> None:
     """
     Convenience function to run the full evaluation pipeline.
@@ -408,7 +424,8 @@ def run_evaluation(
             {"AnomalyCLIP": {"anomalyclip_root": "...", "checkpoint_path": "..."}}.
         device: PyTorch device.
         dataset: Dataset selector: "both", "mvtec", or "visa".
-        corruption_types: Optional subset of Hendrycks corruptions to run.
+        corruption_types: Optional subset of Hendrycks corruptions to run. Pass
+            an empty list to run only the clean condition.
         severity_levels: Optional subset of severity levels to run.
         batch_size: Number of images per model forward pass. Corruptions and
             image loading remain CPU-side, but compatible wrappers can use this
@@ -424,6 +441,8 @@ def run_evaluation(
             ``visa``) to its CSV generated by demo_categorized.ipynb.
         corruption_seed: Per-image corruption seed.  Set this to the
             ``base_seed`` used to generate a persistent categorized plan.
+        include_clean: Whether to evaluate the original images once as
+            ``clean_level 0`` in addition to the requested corruptions.
     """
     from .dataset import build_dataset_configs
 
@@ -462,8 +481,13 @@ def run_evaluation(
         device=device,
         models=models or COMPLETED_MODELS,
         model_kwargs=model_kwargs or {},
-        corruption_types=corruption_types or CORRUPTION_TYPES,
-        severity_levels=severity_levels or SEVERITY_LEVELS,
+        corruption_types=(
+            corruption_types if corruption_types is not None else CORRUPTION_TYPES
+        ),
+        severity_levels=(
+            severity_levels if severity_levels is not None else SEVERITY_LEVELS
+        ),
+        include_clean=include_clean,
         batch_size=batch_size,
         corruption_cache_root=Path(corruption_cache_root) if corruption_cache_root else None,
         corruption_cache_format=corruption_cache_format,

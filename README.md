@@ -25,7 +25,7 @@ The registry also names planned models, but only the three wrappers above have e
 
 ## Evaluation protocol
 
-The default concrete corruptions are Gaussian, shot, and impulse noise; defocus, motion, and zoom blur; brightness; and contrast. Severity levels default to 1-4.
+By default, every model/dataset evaluation starts with a zero-corruption baseline using the original images. It is reported as `clean_level 0`; pass `include_clean=False` to omit it. The default concrete corruptions are Gaussian, shot, and impulse noise; defocus, motion, and zoom blur; brightness; and contrast. Corruption severity levels default to 1-4.
 
 The optional categorized protocol groups operations into `noise`, `blur`, `photometric`, and `geometric`. It requires the matching dataset corruption-plan CSV so each image receives a deterministic, balanced assignment. Geometric operations transform the image and its mask with the same parameters.
 
@@ -90,6 +90,8 @@ During evaluation, artifacts are written under:
 ```text
 outputs/<model>/<dataset>/<category>/<corruption>/level_<severity>/
 ```
+
+The original-image baseline is stored under `clean/level_0/`; corrupted conditions retain their configured severity directories.
 
 Each condition stores `raw_scores.npy`, `lowres_maps.npy`, and `metadata.json`. Summary files are exported as `<model>_<dataset>_SP.csv` and `<model>_<dataset>_PX.csv`. At the end of a model run, condition artifacts are archived into a ZIP file and the uncompressed model artifact directory is removed.
 
