@@ -24,6 +24,7 @@ from .metrics import (
     resize_anomaly_map,
     resize_mask,
 )
+from .result_order import condition_sort_key
 
 
 class EvaluationHarness:
@@ -102,7 +103,7 @@ class EvaluationHarness:
         ])
 
         px_rows = []
-        for level_key in sorted(model_results.keys()):
+        for level_key in sorted(model_results.keys(), key=condition_sort_key):
             row = [level_key]
             cat_aurocs, cat_aupros, cat_f1s, cat_thresholds = [], [], [], []
 
@@ -147,7 +148,7 @@ class EvaluationHarness:
         ])
 
         sp_rows = []
-        for level_key in sorted(model_results.keys()):
+        for level_key in sorted(model_results.keys(), key=condition_sort_key):
             row = [level_key]
             cat_aurocs, cat_aps, cat_f1s, cat_thresholds = [], [], [], []
 

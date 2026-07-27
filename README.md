@@ -95,6 +95,22 @@ The original-image baseline is stored under `clean/level_0/`; corrupted conditio
 
 Each condition stores `raw_scores.npy`, `lowres_maps.npy`, and `metadata.json`. Summary files are exported as `<model>_<dataset>_SP.csv` and `<model>_<dataset>_PX.csv`. At the end of a model run, condition artifacts are archived into a ZIP file and the uncompressed model artifact directory is removed.
 
+Result rows use one canonical order: `clean_level 0`, concrete corruptions in
+the order configured in `harness/config.py`, categorized corruptions in their
+configured order, and ascending severity within each corruption. Normalize all
+checked-in result CSVs after collecting or concatenating runs with:
+
+```bash
+python scripts/normalize_result_csvs.py
+```
+
+Use `python scripts/normalize_result_csvs.py --check` in validation workflows
+to detect ordering drift without modifying files. The normalizer preserves CSV
+cell values, removes wholly empty records, and rejects malformed or duplicate
+conditions instead of silently guessing. Before atomically replacing a file,
+it reads its temporary output back and verifies every decoded cell string and
+the complete row order.
+
 Generated outputs, caches, datasets, model weights, external model clones, and notebook checkpoints are ignored by Git. The existing `AA-CLIP/*.csv` files remain tracked as reference results.
 
 ## Reproducibility notes
