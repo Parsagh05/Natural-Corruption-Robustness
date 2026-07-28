@@ -22,7 +22,7 @@ from .config import (
     CLEAN_CONDITION,
 )
 from .seed import set_global_seed
-from .corruption import apply_corruption
+from .corruption import CATEGORIZED_CORRUPTIONS, apply_corruption
 from .dataset import AnomalyDetectionDataset
 from .models import get_model, BaseModelWrapper
 from .storage import ArtifactStorage, IncrementalAccumulator
@@ -145,6 +145,18 @@ class RobustnessRunner:
                 logger.info(f"Exported: {px_path}")
             if sp_path:
                 logger.info(f"Exported: {sp_path}")
+            if self.config.categorized_corruptions:
+                fine_px_path, fine_sp_path, per_image_path = (
+                    self.eval_harness.export_categorized_fine_grained(
+                        model_name, dataset_config
+                    )
+                )
+                if fine_px_path:
+                    logger.info(f"Exported: {fine_px_path}")
+                if fine_sp_path:
+                    logger.info(f"Exported: {fine_sp_path}")
+                if per_image_path:
+                    logger.info(f"Exported: {per_image_path}")
 
         # Release model and clean up
         model_wrapper.release()
@@ -154,6 +166,7 @@ class RobustnessRunner:
         if zip_path:
             logger.info(f"Archived: {zip_path}")
 
+        self.eval_harness.discard_model_results(model_name)
         ArtifactStorage.cleanup_memory()
         logger.info(f"Completed model: {model_name}")
 
@@ -238,8 +251,8 @@ class RobustnessRunner:
         progress_bar: Optional[tqdm] = None,
     ) -> None:
         """Run inference on a single category with a specific corruption."""
+        is_clean = (corruption_type, severity) == CLEAN_CONDITION
         if dataset is None:
-            is_clean = (corruption_type, severity) == CLEAN_CONDITION
             dataset = AnomalyDetectionDataset(
                 config=dataset_config,
                 corruption_type=corruption_type,
@@ -352,6 +365,8 @@ class RobustnessRunner:
         image_metrics = compute_image_metrics(labels, scores)
 
         # Pixel-level metrics
+        resized_masks = []
+        resized_maps = []
         if lowres_maps.ndim == 3 and lowres_maps.shape[0] > 0:
             metric_size = DEFAULT_PIXEL_METRIC_SIZE
             if len(metric_masks) != len(metadata):
@@ -392,6 +407,89 @@ class RobustnessRunner:
             pixel_metrics=pixel_metrics,
             image_metrics=image_metrics,
         )
+
+        if self.config.categorized_corruptions:
+            self.eval_harness.record_per_image_scores(
+                model_name=model_name,
+                dataset_name=dataset_name,
+                category=category,
+                corruption_category=corruption_type,
+                severity=severity,
+                scores=scores,
+                metadata=metadata,
+            )
+
+            if is_clean:
+                # Keep the clean baseline in the fine-grained files so they
+                # are self-contained and match the standard result protocol.
+                self.eval_harness.record_fine_grained_metrics(
+                    model_name=model_name,
+                    dataset_name=dataset_name,
+                    category=category,
+                    corruption_type=corruption_type,
+                    severity=severity,
+                    pixel_metrics=pixel_metrics,
+                    image_metrics=image_metrics,
+                )
+            else:
+                expected_corruptions = CATEGORIZED_CORRUPTIONS.get(
+                    corruption_type
+                )
+                if expected_corruptions is None:
+                    raise RuntimeError(
+                        "Categorized evaluation received an unknown category: "
+                        f"{corruption_type!r}"
+                    )
+
+                selected_corruptions = np.asarray([
+                    meta.get("selected_corruption") for meta in metadata
+                ])
+                invalid_corruptions = sorted(
+                    set(selected_corruptions) - set(expected_corruptions),
+                    key=str,
+                )
+                if invalid_corruptions:
+                    raise RuntimeError(
+                        f"Invalid assignments for {corruption_type}: "
+                        f"{invalid_corruptions}"
+                    )
+
+                for concrete_corruption in expected_corruptions:
+                    indices = np.flatnonzero(
+                        selected_corruptions == concrete_corruption
+                    )
+                    if indices.size == 0:
+                        raise RuntimeError(
+                            f"No {concrete_corruption} samples were assigned "
+                            f"for {dataset_name}/{category}/level_{severity}"
+                        )
+
+                    fine_image_metrics = compute_image_metrics(
+                        labels[indices], scores[indices]
+                    )
+                    if resized_maps:
+                        fine_pixel_metrics = compute_pixel_metrics(
+                            [resized_masks[index] for index in indices],
+                            [resized_maps[index] for index in indices],
+                            aupro_device=self.config.device,
+                        )
+                    else:
+                        fine_pixel_metrics = {
+                            "auroc_px": 0.0,
+                            "f1_px": 0.0,
+                            "aupro_px": 0.0,
+                            "threshold_px": 0.0,
+                        }
+
+                    self.eval_harness.record_fine_grained_metrics(
+                        model_name=model_name,
+                        dataset_name=dataset_name,
+                        category=category,
+                        corruption_type=concrete_corruption,
+                        severity=severity,
+                        pixel_metrics=fine_pixel_metrics,
+                        image_metrics=fine_image_metrics,
+                    )
 
 
 def run_evaluation(

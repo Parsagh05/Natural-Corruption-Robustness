@@ -27,11 +27,19 @@ CORRUPTION_TYPES: List[str] = [
 # its group.  The assignment is balanced independently for each object class
 # and image label, so the corruption choice cannot be confounded with the
 # normal/anomalous split.
-CATEGORIZED_CORRUPTION_TYPES: List[str] = [
-    "noise",
-    "blur",
-    "photometric",
-    "geometric",
+CATEGORIZED_CORRUPTION_GROUPS: Dict[str, Tuple[str, ...]] = {
+    "noise": ("gaussian_noise", "shot_noise", "impulse_noise"),
+    "blur": ("defocus_blur", "motion_blur", "zoom_blur"),
+    "photometric": ("brightness", "contrast"),
+    "geometric": ("rotation", "zooming", "shifting"),
+}
+CATEGORIZED_CORRUPTION_TYPES: List[str] = list(
+    CATEGORIZED_CORRUPTION_GROUPS
+)
+CATEGORIZED_FINE_GRAINED_CORRUPTION_TYPES: List[str] = [
+    corruption
+    for corruptions in CATEGORIZED_CORRUPTION_GROUPS.values()
+    for corruption in corruptions
 ]
 
 SEVERITY_LEVELS: List[int] = [1, 2, 3, 4]

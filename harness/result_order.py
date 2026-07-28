@@ -4,7 +4,10 @@
 import re
 from typing import Tuple
 
-from .config import CATEGORIZED_CORRUPTION_TYPES, CORRUPTION_TYPES
+from .config import (
+    CATEGORIZED_CORRUPTION_TYPES,
+    CATEGORIZED_FINE_GRAINED_CORRUPTION_TYPES,
+)
 
 
 _CONDITION_PATTERN = re.compile(
@@ -13,7 +16,10 @@ _CONDITION_PATTERN = re.compile(
 _CORRUPTION_RANK = {
     corruption: rank
     for rank, corruption in enumerate(
-        [*CORRUPTION_TYPES, *CATEGORIZED_CORRUPTION_TYPES]
+        [
+            *CATEGORIZED_FINE_GRAINED_CORRUPTION_TYPES,
+            *CATEGORIZED_CORRUPTION_TYPES,
+        ]
     )
 }
 

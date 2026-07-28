@@ -10,8 +10,10 @@ Output CSV format:
 
 import csv
 import json
+import os
+import tempfile
 from pathlib import Path
-from typing import Dict, Tuple
+from typing import Dict, Optional, Tuple
 
 import numpy as np
 from PIL import Image
@@ -39,6 +41,30 @@ class EvaluationHarness:
         self.output_root = output_root
         self.config = config
         self.results: Dict[str, Dict[str, Dict[str, Dict[str, Dict[str, float]]]]] = {}
+        self.fine_grained_results: Dict[
+            str, Dict[str, Dict[str, Dict[str, Dict[str, float]]]]
+        ] = {}
+        self.per_image_scores: Dict[str, Dict[str, list]] = {}
+
+    @staticmethod
+    def _record_in_store(
+        store: Dict,
+        model_name: str,
+        dataset_name: str,
+        category: str,
+        corruption_type: str,
+        severity: int,
+        pixel_metrics: Dict[str, float],
+        image_metrics: Dict[str, float],
+    ) -> None:
+        level_key = f"{corruption_type}_level {severity}"
+        store.setdefault(model_name, {})
+        store[model_name].setdefault(dataset_name, {})
+        store[model_name][dataset_name].setdefault(level_key, {})
+        store[model_name][dataset_name][level_key][category] = {
+            **pixel_metrics,
+            **image_metrics,
+        }
 
     def record_metrics(
         self,
@@ -51,20 +77,100 @@ class EvaluationHarness:
         image_metrics: Dict[str, float],
     ) -> None:
         """Record computed metrics for a single evaluation condition."""
-        level_key = f"{corruption_type}_level {severity}"
+        self._record_in_store(
+            self.results,
+            model_name,
+            dataset_name,
+            category,
+            corruption_type,
+            severity,
+            pixel_metrics,
+            image_metrics,
+        )
 
-        self.results.setdefault(model_name, {})
-        self.results[model_name].setdefault(dataset_name, {})
-        self.results[model_name][dataset_name].setdefault(level_key, {})
-        self.results[model_name][dataset_name][level_key][category] = {
-            **pixel_metrics,
-            **image_metrics,
-        }
+    def record_fine_grained_metrics(
+        self,
+        model_name: str,
+        dataset_name: str,
+        category: str,
+        corruption_type: str,
+        severity: int,
+        pixel_metrics: Dict[str, float],
+        image_metrics: Dict[str, float],
+    ) -> None:
+        """Record one concrete-corruption result from a categorized run."""
+        self._record_in_store(
+            self.fine_grained_results,
+            model_name,
+            dataset_name,
+            category,
+            corruption_type,
+            severity,
+            pixel_metrics,
+            image_metrics,
+        )
 
-    def export_csv(
+    def record_per_image_scores(
+        self,
+        model_name: str,
+        dataset_name: str,
+        category: str,
+        corruption_category: str,
+        severity: int,
+        scores: np.ndarray,
+        metadata: list,
+    ) -> None:
+        """Save JSON-serializable image scores in inference-array order."""
+        if len(scores) != len(metadata):
+            raise ValueError(
+                "Per-image score/metadata length mismatch: "
+                f"{len(scores)} scores for {len(metadata)} records"
+            )
+        records = self.per_image_scores.setdefault(model_name, {}).setdefault(
+            dataset_name, []
+        )
+        artifact_dir = (
+            Path(dataset_name)
+            / category
+            / corruption_category
+            / f"level_{severity}"
+        )
+        for index, (score, meta) in enumerate(zip(scores, metadata)):
+            selected_corruption = (
+                meta.get("selected_corruption") or corruption_category
+            )
+            records.append({
+                "model": model_name,
+                "dataset": dataset_name,
+                "class_name": category,
+                "corruption_category": corruption_category,
+                "selected_corruption": selected_corruption,
+                "severity": severity,
+                "transformation_level": (
+                    f"{selected_corruption}_level {severity}"
+                ),
+                "sample_id": meta.get("sample_id"),
+                "label": int(meta["label"]),
+                "image_path": meta.get("image_path"),
+                "mask_path": meta.get("mask_path"),
+                "image_score": float(score),
+                "raw_scores_file": (
+                    artifact_dir / "raw_scores.npy"
+                ).as_posix(),
+                "raw_scores_index": index,
+                "lowres_maps_file": (
+                    artifact_dir / "lowres_maps.npy"
+                ).as_posix(),
+                "lowres_maps_index": index,
+            })
+
+    def _export_csv_store(
         self,
         model_name: str,
         dataset_config: DatasetConfig,
+        result_store: Dict,
+        filename_tag: str = "",
+        require_all_categories: bool = False,
     ) -> Tuple[Path, Path]:
         """
         Export results to CSV files matching the survey schema.
@@ -75,17 +181,29 @@ class EvaluationHarness:
         dataset_name = dataset_config.name
         categories = dataset_config.categories
 
-        if model_name not in self.results:
+        if model_name not in result_store:
             return None, None
-        if dataset_name not in self.results[model_name]:
+        if dataset_name not in result_store[model_name]:
             return None, None
 
-        model_results = self.results[model_name][dataset_name]
+        model_results = result_store[model_name][dataset_name]
+        if require_all_categories:
+            for level_key, category_results in model_results.items():
+                missing_categories = [
+                    category
+                    for category in categories
+                    if category not in category_results
+                ]
+                if missing_categories:
+                    raise ValueError(
+                        f"Fine-grained condition {level_key!r} is missing "
+                        f"object classes: {missing_categories}"
+                    )
         csv_dir = self.output_root / model_name
         csv_dir.mkdir(parents=True, exist_ok=True)
 
-        px_path = csv_dir / f"{model_name}_{dataset_name}_PX.csv"
-        sp_path = csv_dir / f"{model_name}_{dataset_name}_SP.csv"
+        px_path = csv_dir / f"{model_name}_{dataset_name}{filename_tag}_PX.csv"
+        sp_path = csv_dir / f"{model_name}_{dataset_name}{filename_tag}_SP.csv"
 
         px_header = ["transformation_level"]
         for cat in categories:
@@ -178,6 +296,83 @@ class EvaluationHarness:
             writer.writerows(sp_rows)
 
         return px_path, sp_path
+
+    def export_csv(
+        self,
+        model_name: str,
+        dataset_config: DatasetConfig,
+    ) -> Tuple[Path, Path]:
+        """Export the standard category-level result CSVs."""
+        return self._export_csv_store(
+            model_name,
+            dataset_config,
+            self.results,
+        )
+
+    def export_categorized_fine_grained(
+        self,
+        model_name: str,
+        dataset_config: DatasetConfig,
+    ) -> Tuple[Optional[Path], Optional[Path], Optional[Path]]:
+        """Export categorized subtype SP/PX CSVs and per-image score JSON."""
+        px_path, sp_path = self._export_csv_store(
+            model_name,
+            dataset_config,
+            self.fine_grained_results,
+            filename_tag="_FINE_GRAINED",
+            require_all_categories=True,
+        )
+        records = self.per_image_scores.get(model_name, {}).get(
+            dataset_config.name, []
+        )
+        if not records:
+            return px_path, sp_path, None
+
+        json_dir = self.output_root / model_name
+        json_dir.mkdir(parents=True, exist_ok=True)
+        json_path = json_dir / (
+            f"{model_name}_{dataset_config.name}_FINE_GRAINED_PER_IMAGE.json"
+        )
+        temporary_path = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode="w",
+                encoding="utf-8",
+                dir=json_dir,
+                prefix=f".{json_path.name}.",
+                suffix=".tmp",
+                delete=False,
+            ) as output_file:
+                temporary_path = Path(output_file.name)
+                json.dump(
+                    {
+                        "model": model_name,
+                        "dataset": dataset_config.name,
+                        "protocol": (
+                            "categorized_fine_grained_assigned_subsets"
+                        ),
+                        "description": (
+                            "Concrete-corruption metrics use the image subsets "
+                            "assigned by the categorized corruption plan."
+                        ),
+                        "records": records,
+                    },
+                    output_file,
+                    indent=2,
+                    allow_nan=False,
+                )
+                output_file.write("\n")
+            os.replace(temporary_path, json_path)
+        finally:
+            if temporary_path is not None and temporary_path.exists():
+                temporary_path.unlink()
+        return px_path, sp_path, json_path
+
+    def discard_model_results(self, model_name: str) -> None:
+        """Release completed result buffers after their files are archived."""
+        self.results.pop(model_name, None)
+        self.fine_grained_results.pop(model_name, None)
+        self.per_image_scores.pop(model_name, None)
 
     def evaluate_from_artifacts(
         self,

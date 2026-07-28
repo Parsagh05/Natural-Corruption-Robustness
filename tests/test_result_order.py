@@ -56,6 +56,22 @@ class ResultConditionOrderTest(unittest.TestCase):
             ],
         )
 
+    def test_categorized_geometric_subtypes_follow_protocol_order(self):
+        conditions = [
+            "shifting_level 1",
+            "zooming_level 1",
+            "rotation_level 1",
+        ]
+
+        self.assertEqual(
+            sorted(conditions, key=condition_sort_key),
+            [
+                "rotation_level 1",
+                "zooming_level 1",
+                "shifting_level 1",
+            ],
+        )
+
     def test_parse_condition_rejects_malformed_values(self):
         with self.assertRaises(ValueError):
             parse_condition("brightness severity 1")

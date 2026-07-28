@@ -8,18 +8,16 @@ from typing import Dict
 import numpy as np
 from PIL import Image
 
+from .config import CATEGORIZED_CORRUPTION_GROUPS
 from .seed import stable_corruption_seed
 
 # Lazy-loaded corruption functions from the frozen imagenet_c copy
 _CORRUPTION_FNS = None
 
 
-CATEGORIZED_CORRUPTIONS: Dict[str, tuple[str, ...]] = {
-    "noise": ("gaussian_noise", "shot_noise", "impulse_noise"),
-    "blur": ("defocus_blur", "motion_blur", "zoom_blur"),
-    "photometric": ("brightness", "contrast"),
-    "geometric": ("rotation", "zooming", "shifting"),
-}
+CATEGORIZED_CORRUPTIONS: Dict[str, tuple[str, ...]] = (
+    CATEGORIZED_CORRUPTION_GROUPS.copy()
+)
 GEOMETRIC_CORRUPTIONS = frozenset(CATEGORIZED_CORRUPTIONS["geometric"])
 
 

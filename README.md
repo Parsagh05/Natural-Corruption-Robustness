@@ -95,6 +95,15 @@ The original-image baseline is stored under `clean/level_0/`; corrupted conditio
 
 Each condition stores `raw_scores.npy`, `lowres_maps.npy`, and `metadata.json`. Summary files are exported as `<model>_<dataset>_SP.csv` and `<model>_<dataset>_PX.csv`. At the end of a model run, condition artifacts are archived into a ZIP file and the uncompressed model artifact directory is removed.
 
+Categorized runs additionally split the in-memory predictions and correctly
+transformed masks by their assigned concrete corruption. They automatically
+export `<model>_<dataset>_FINE_GRAINED_SP.csv`,
+`<model>_<dataset>_FINE_GRAINED_PX.csv`, and
+`<model>_<dataset>_FINE_GRAINED_PER_IMAGE.json`. The JSON records each image's
+scalar anomaly score and references its saved raw-score and low-resolution-map
+array positions. Fine-grained categorized metrics describe the assigned image
+subsets; they are not the full-image-set uncategorized protocol.
+
 Result rows use one canonical order: `clean_level 0`, concrete corruptions in
 the order configured in `harness/config.py`, categorized corruptions in their
 configured order, and ascending severity within each corruption. Normalize all
