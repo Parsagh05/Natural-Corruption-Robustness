@@ -13,6 +13,8 @@ import numpy as np
 import torch
 from tqdm.auto import tqdm
 
+from shared.corruption import CATEGORIZED_CORRUPTIONS, apply_corruption
+
 from .config import (
     HarnessConfig,
     DatasetConfig,
@@ -22,7 +24,6 @@ from .config import (
     CLEAN_CONDITION,
 )
 from .seed import set_global_seed
-from .corruption import CATEGORIZED_CORRUPTIONS, apply_corruption
 from .dataset import AnomalyDetectionDataset
 from .models import get_model, BaseModelWrapper
 from .storage import ArtifactStorage, IncrementalAccumulator

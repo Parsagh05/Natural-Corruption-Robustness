@@ -13,16 +13,20 @@ The registry also names planned models, but only the three wrappers above have e
 ## Repository layout
 
 ```text
-.
+zero_shot/
 |-- harness/                         Core datasets, model wrappers, metrics, runner, and storage
-|-- imagenet_c/                      Vendored corruption implementations and frost assets
-|-- visa_corruption_plan.csv         Fixed VisA categorized-corruption assignments
-|-- mvtec_corruption_plan.csv        Fixed MVTec categorized-corruption assignments
 |-- kaggle_final_*.ipynb             Kaggle evaluation launchers
 |-- kaggle_train_aaclip.ipynb        Kaggle AA-CLIP training launcher
 |-- AA-CLIP/                         Checked-in AA-CLIP results
 `-- AF-CLIP/                         Checked-in AF-CLIP results
 ```
+
+Reusable corruption assets live at the repository root: the vendored
+implementation and frost assets are in `shared/imagenet_c/`, while fixed
+MVTec and VisA categorized assignments are in `shared/corruption_plans/`.
+Deterministic image/mask transforms and per-sample seeding live in
+`shared/corruption.py`. This layout lets zero-shot and few-shot evaluations
+consume exactly the same corruption definitions and plans.
 
 ## Evaluation protocol
 
@@ -34,7 +38,7 @@ Metrics include image-level AUROC, average precision, and F1-max, plus pixel-lev
 
 ## Kaggle quick start
 
-1. Clone or use [`Parsagh05/Natural-Corruption-Robustness`](https://github.com/Parsagh05/Natural-Corruption-Robustness). The evaluation notebooks load the harness from its `zero_shot/` subdirectory. If the GitHub owner or name changes, update `BENCHMARK_REPOSITORY` in the first cell of each evaluation notebook.
+1. Clone or use [`Parsagh05/Natural-Corruption-Robustness`](https://github.com/Parsagh05/Natural-Corruption-Robustness). The evaluation notebooks load the harness from `zero_shot/` and corruption assets from `shared/`. If the GitHub owner or name changes, update `BENCHMARK_REPOSITORY` in the first cell of each evaluation notebook.
 2. Attach the MVTec AD or VisA dataset and the model checkpoint input required by the selected notebook.
 3. Open one of the evaluation notebooks, choose `DATASET_NAME`, corruption mode, severities, and batch size, then run all cells. No GitHub token or Kaggle secret is required for the public benchmark repository.
 
@@ -55,7 +59,6 @@ From the repository root, create an environment and install the shared harness d
 ```bash
 python -m venv .venv
 python -m pip install -r requirements.txt
-cd zero_shot
 ```
 
 Install a PyTorch build appropriate for your CUDA version when using a GPU. ImageMagick must also be available on the system because the vendored ImageNet-C motion-blur implementation uses its Wand bindings.
@@ -65,7 +68,7 @@ Clone the official repository for the model you want to run outside `zero_shot/`
 The programmatic entry point is:
 
 ```python
-from harness.runner import run_evaluation
+from zero_shot.harness.runner import run_evaluation
 
 run_evaluation(
     mvtec_root="/path/to/mvtec_anomaly_detection",
@@ -112,10 +115,10 @@ configured order, and ascending severity within each corruption. Normalize all
 checked-in result CSVs after collecting or concatenating runs with:
 
 ```bash
-python scripts/normalize_result_csvs.py
+python zero_shot/scripts/normalize_result_csvs.py
 ```
 
-Use `python scripts/normalize_result_csvs.py --check` in validation workflows
+Use `python zero_shot/scripts/normalize_result_csvs.py --check` in validation workflows
 to detect ordering drift without modifying files. The normalizer preserves CSV
 cell values, removes wholly empty records, and rejects malformed or duplicate
 conditions instead of silently guessing. Before atomically replacing a file,

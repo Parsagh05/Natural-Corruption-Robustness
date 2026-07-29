@@ -15,12 +15,13 @@ from PIL import Image
 import torch
 from torch.utils.data import Dataset
 
-from .config import DatasetConfig, MVTEC_CATEGORIES, VISA_CATEGORIES
-from .corruption import (
+from shared.corruption import (
     apply_corruption,
     apply_corruption_to_mask,
     is_corruption_category,
 )
+
+from .config import DatasetConfig, MVTEC_CATEGORIES, VISA_CATEGORIES
 
 
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff"}

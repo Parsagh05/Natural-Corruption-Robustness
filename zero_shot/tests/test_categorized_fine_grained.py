@@ -7,10 +7,10 @@ from unittest.mock import patch
 
 import numpy as np
 
-from harness.config import DatasetConfig, HarnessConfig
-from harness.runner import RobustnessRunner
+from zero_shot.harness.config import DatasetConfig, HarnessConfig
+from zero_shot.harness.runner import RobustnessRunner
 
-from scripts.extract_categorized_fine_grained import (
+from zero_shot.scripts.extract_categorized_fine_grained import (
     CATEGORY_CORRUPTIONS,
     _metric_header,
     _metric_rows,
@@ -159,7 +159,7 @@ class CategorizedPipelineOutputTest(unittest.TestCase):
                 "threshold_px": 0.25,
             }
             with patch(
-                "harness.runner.compute_pixel_metrics",
+                "zero_shot.harness.runner.compute_pixel_metrics",
                 return_value=pixel_metrics,
             ) as compute_pixel_mock:
                 clean_dataset = _FakeCategorizedDataset()

@@ -5,12 +5,16 @@ seed.py - Deterministic seed enforcement across all random sources.
 
 import os
 import random
-import hashlib
 
 import numpy as np
 import torch
 
+from shared.corruption import stable_corruption_seed
+
 from .config import GLOBAL_SEED
+
+
+__all__ = ["set_global_seed", "stable_corruption_seed"]
 
 
 def set_global_seed(seed: int = GLOBAL_SEED) -> None:
@@ -22,12 +26,3 @@ def set_global_seed(seed: int = GLOBAL_SEED) -> None:
     os.environ["PYTHONHASHSEED"] = str(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
-
-
-def stable_corruption_seed(base_seed: int, rel_path: str, corruption: str, severity: int) -> int:
-    """
-    Generate a deterministic per-sample seed for corruption reproducibility.
-    Mirrors the logic in natural_noise.py.
-    """
-    key = f"{base_seed}|{rel_path}|{corruption}|{severity}"
-    return int(hashlib.sha256(key.encode()).hexdigest()[:8], 16)

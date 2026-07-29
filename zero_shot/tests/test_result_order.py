@@ -3,8 +3,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from harness.result_order import condition_sort_key, parse_condition
-from scripts.normalize_result_csvs import normalize_csv
+from zero_shot.harness.result_order import condition_sort_key, parse_condition
+from zero_shot.scripts.normalize_result_csvs import normalize_csv
 
 
 class ResultConditionOrderTest(unittest.TestCase):

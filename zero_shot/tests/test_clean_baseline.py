@@ -7,10 +7,10 @@ from unittest.mock import patch
 import numpy as np
 from PIL import Image
 
-from harness.config import DatasetConfig, HarnessConfig
-from harness.dataset import AnomalyDetectionDataset
-from harness.runner import RobustnessRunner
-from harness.storage import ArtifactStorage
+from zero_shot.harness.config import DatasetConfig, HarnessConfig
+from zero_shot.harness.dataset import AnomalyDetectionDataset
+from zero_shot.harness.runner import RobustnessRunner
+from zero_shot.harness.storage import ArtifactStorage
 
 
 class CleanBaselineTest(unittest.TestCase):
@@ -110,7 +110,10 @@ class CleanBaselineTest(unittest.TestCase):
             runner = RobustnessRunner(config)
 
             with (
-                patch("harness.runner.AnomalyDetectionDataset", FakeDataset),
+                patch(
+                    "zero_shot.harness.runner.AnomalyDetectionDataset",
+                    FakeDataset,
+                ),
                 patch.object(RobustnessRunner, "_run_category"),
                 patch.object(ArtifactStorage, "cleanup_memory"),
             ):

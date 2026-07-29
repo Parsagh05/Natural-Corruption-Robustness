@@ -35,15 +35,18 @@ class AACLIPNotebookConfigTest(unittest.TestCase):
             source,
         )
 
-    def test_evaluation_notebooks_load_moved_zero_shot_harness(self):
-        expected_path = "/kaggle/working/Natural-Corruption-Robustness/zero_shot"
+    def test_evaluation_notebooks_load_harness_and_shared_assets(self):
+        benchmark_path = "/kaggle/working/Natural-Corruption-Robustness"
         for notebook_name in (
             "kaggle_final_aaclip.ipynb",
             "kaggle_final_afclip.ipynb",
             "kaggle_final_anomalyclip.ipynb",
         ):
             with self.subTest(notebook=notebook_name):
-                self.assertIn(expected_path, self._code_source(notebook_name))
+                source = self._code_source(notebook_name)
+                self.assertIn(benchmark_path, source)
+                self.assertIn("zero_shot", source)
+                self.assertIn("corruption_plan_path", source)
 
 
 if __name__ == "__main__":

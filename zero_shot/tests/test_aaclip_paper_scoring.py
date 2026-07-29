@@ -7,11 +7,11 @@ import numpy as np
 import torch
 from PIL import Image
 
-from harness.aaclip_scoring import postprocess_aaclip_industrial_condition
-from harness.config import DatasetConfig, HarnessConfig
-from harness.metrics import resize_anomaly_map
-from harness.models import AACLIPWrapper, AFCLIPWrapper
-from harness.runner import RobustnessRunner
+from zero_shot.harness.aaclip_scoring import postprocess_aaclip_industrial_condition
+from zero_shot.harness.config import DatasetConfig, HarnessConfig
+from zero_shot.harness.metrics import resize_anomaly_map
+from zero_shot.harness.models import AACLIPWrapper, AFCLIPWrapper
+from zero_shot.harness.runner import RobustnessRunner
 
 
 class _FakeAACLIPModel:
@@ -189,7 +189,7 @@ class AACLIPPaperScoringTest(unittest.TestCase):
             )
 
             with patch(
-                "harness.runner.compute_pixel_metrics",
+                "zero_shot.harness.runner.compute_pixel_metrics",
                 return_value=pixel_metrics,
             ):
                 for paper_postprocessing in (False, True):

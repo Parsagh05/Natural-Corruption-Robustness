@@ -24,17 +24,17 @@ from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 import numpy as np
 from PIL import Image
 
-
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
-if str(REPOSITORY_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPOSITORY_ROOT))
+PROJECT_ROOT = REPOSITORY_ROOT.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
-from harness.config import MVTEC_CATEGORIES, VISA_CATEGORIES  # noqa: E402
-from harness.corruption import (  # noqa: E402
+from shared.corruption import (  # noqa: E402
     CATEGORIZED_CORRUPTIONS,
     apply_corruption_to_mask,
 )
-from harness.metrics import (  # noqa: E402
+from zero_shot.harness.config import MVTEC_CATEGORIES, VISA_CATEGORIES  # noqa: E402
+from zero_shot.harness.metrics import (  # noqa: E402
     DEFAULT_PIXEL_METRIC_SIZE,
     compute_image_metrics,
     compute_pixel_metrics,

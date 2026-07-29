@@ -12,10 +12,14 @@ from typing import Iterable, List, Sequence, Tuple
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
-if str(REPOSITORY_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPOSITORY_ROOT))
+PROJECT_ROOT = REPOSITORY_ROOT.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
-from harness.result_order import condition_sort_key, parse_condition  # noqa: E402
+from zero_shot.harness.result_order import (  # noqa: E402
+    condition_sort_key,
+    parse_condition,
+)
 
 
 RESULT_SUFFIXES = ("_PX.csv", "_SP.csv")

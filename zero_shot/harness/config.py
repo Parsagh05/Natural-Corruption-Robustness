@@ -7,6 +7,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+from shared.corruption import CATEGORIZED_CORRUPTIONS
+
 
 # Global seed
 GLOBAL_SEED: int = 111
@@ -27,12 +29,9 @@ CORRUPTION_TYPES: List[str] = [
 # its group.  The assignment is balanced independently for each object class
 # and image label, so the corruption choice cannot be confounded with the
 # normal/anomalous split.
-CATEGORIZED_CORRUPTION_GROUPS: Dict[str, Tuple[str, ...]] = {
-    "noise": ("gaussian_noise", "shot_noise", "impulse_noise"),
-    "blur": ("defocus_blur", "motion_blur", "zoom_blur"),
-    "photometric": ("brightness", "contrast"),
-    "geometric": ("rotation", "zooming", "shifting"),
-}
+CATEGORIZED_CORRUPTION_GROUPS: Dict[str, Tuple[str, ...]] = (
+    CATEGORIZED_CORRUPTIONS.copy()
+)
 CATEGORIZED_CORRUPTION_TYPES: List[str] = list(
     CATEGORIZED_CORRUPTION_GROUPS
 )
