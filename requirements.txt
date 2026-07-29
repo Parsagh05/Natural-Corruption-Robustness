@@ -1,18 +1,2 @@
-numpy>=1.26,<3
-Pillow>=9.1
-torch>=2.0
-torchvision>=0.15
-tqdm>=4.64
-scipy>=1.9
-scikit-learn>=1.2
-scikit-image>=0.20
-opencv-python-headless>=4.8
-Wand>=0.6
-kornia==0.6.9
-einops>=0.7
-ftfy>=6.1
-regex>=2023.0
-timm==0.6.12
-tiktoken>=0.5
-open-clip-torch>=2.20
-
+# Dependencies for the currently implemented zero-shot pipeline.
+-r zero_shot/requirements.txt

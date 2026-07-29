@@ -1,0 +1,1303 @@
+# -*- coding: utf-8 -*-
+"""
+models.py - Model registry and wrapper with .forward_raw() extraction.
+
+Each model wrapper intercepts the inference pipeline to extract:
+  1. Raw image-level anomaly score (before any normalization).
+  2. Low-resolution anomaly map tensor (before final bilinear upsampling).
+"""
+
+from abc import ABC, abstractmethod
+import importlib
+import os
+import sys
+from types import SimpleNamespace
+from typing import Tuple, Optional, Dict, Any, Sequence
+from pathlib import Path
+
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from PIL import Image
+
+from .aaclip_scoring import postprocess_aaclip_industrial_condition
+
+
+def _as_tuple(value: Any, default: Sequence[int]) -> Tuple[int, ...]:
+    if value is None:
+        return tuple(default)
+    if isinstance(value, int):
+        return (value,)
+    return tuple(value)
+
+
+def _resolve_existing_path(path_value: Optional[str]) -> Optional[Path]:
+    if not path_value:
+        return None
+    path = Path(path_value).expanduser()
+    return path if path.exists() else None
+
+
+class BaseModelWrapper(ABC):
+    """
+    Abstract base class for all VLM anomaly detection model wrappers.
+
+    Every model wrapper MUST implement:
+        - load_model(): Initialize model weights and components.
+        - forward_raw(image): Return (anomaly_score, lowres_anomaly_map).
+    """
+
+    def __init__(self, model_name: str, device: str = "cuda", **kwargs):
+        self.model_name = model_name
+        self.device = device
+        self.model = None
+        self.kwargs = kwargs
+
+    # All existing wrappers keep the harness's historical interpolation rule.
+    # AA-CLIP overrides this because its official test code uses True.
+    metric_map_align_corners: bool = False
+    condition_postprocessing: bool = False
+
+    @abstractmethod
+    def load_model(self) -> None:
+        """Load model weights and initialize inference components."""
+        pass
+
+    @abstractmethod
+    def forward_raw(
+        self, image: Image.Image, category: str = ""
+    ) -> Tuple[float, np.ndarray]:
+        """
+        Run inference and extract raw outputs BEFORE final upsampling.
+
+        Args:
+            image: PIL RGB image (corrupted or clean).
+            category: Category name for prompt-based models.
+
+        Returns:
+            anomaly_score: float - Image-level anomaly score.
+            lowres_map: np.ndarray of shape (H_low, W_low) - Raw anomaly map
+                        at token/patch resolution (e.g., 14x14 or 24x24).
+        """
+        pass
+
+    def forward_raw_batch(
+        self, images: Sequence[Image.Image], category: str = ""
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Batched inference hook. Wrappers can override this for efficient GPU
+        batching; the default preserves compatibility by looping one image at
+        a time.
+        """
+        scores, lowres_maps = [], []
+        for image in images:
+            score, lowres_map = self.forward_raw(image, category=category)
+            scores.append(score)
+            lowres_maps.append(lowres_map)
+        return np.asarray(scores, dtype=np.float32), np.stack(lowres_maps)
+
+    def postprocess_condition_outputs(
+        self,
+        scores: np.ndarray,
+        anomaly_maps: Sequence[np.ndarray],
+    ) -> Tuple[np.ndarray, Sequence[np.ndarray]]:
+        """Finalize scores after all samples from one class are available.
+
+        Most models require no condition-level processing.  AA-CLIP overrides
+        this hook because its official industrial inference normalizes across
+        a whole class/condition and fuses image and pixel-map predictions.
+        """
+        return scores, anomaly_maps
+
+    def release(self) -> None:
+        """Free GPU memory."""
+        if self.model is not None:
+            del self.model
+            self.model = None
+        torch.cuda.empty_cache()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Concrete Model Wrappers
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class VCPCLIPWrapper(BaseModelWrapper):
+    """Wrapper for VCP-CLIP: Vision-language Contrastive Prompting."""
+
+    def __init__(self, checkpoint_path: str = "", **kwargs):
+        super().__init__("VCP-CLIP", **kwargs)
+        self.checkpoint_path = checkpoint_path
+
+    def load_model(self) -> None:
+        # Import model-specific code
+        # from vcp_clip import VCPCLIPModel  # noqa: E402
+        # self.model = VCPCLIPModel.load(self.checkpoint_path)
+        # self.model.to(self.device).eval()
+        pass
+
+    def forward_raw(
+        self, image: Image.Image, category: str = ""
+    ) -> Tuple[float, np.ndarray]:
+        """
+        Intercept VCP-CLIP to get pre-upsampled patch similarities.
+        The model internally computes token-level similarity maps at
+        (H/patch_size, W/patch_size) resolution before F.interpolate.
+        """
+        # Placeholder implementation structure:
+        # with torch.no_grad():
+        #     preprocessed = self.model.preprocess(image).unsqueeze(0).to(self.device)
+        #     # Hook into the model before the final upsample
+        #     features = self.model.encode_image(preprocessed)
+        #     text_features = self.model.encode_text(category)
+        #     # Compute patch-level similarities (raw low-res map)
+        #     patch_sims = self.model.compute_patch_similarity(features, text_features)
+        #     # patch_sims shape: (1, H_low, W_low)
+        #     lowres_map = patch_sims.squeeze(0).cpu().numpy()
+        #     anomaly_score = lowres_map.max()
+        #     return float(anomaly_score), lowres_map
+
+        # Stub return for framework validation
+        lowres_map = np.zeros((14, 14), dtype=np.float32)
+        return 0.0, lowres_map
+
+
+class CraneWrapper(BaseModelWrapper):
+    """Wrapper for Crane model."""
+
+    def __init__(self, checkpoint_path: str = "", **kwargs):
+        super().__init__("Crane", **kwargs)
+        self.checkpoint_path = checkpoint_path
+
+    def load_model(self) -> None:
+        pass
+
+    def forward_raw(
+        self, image: Image.Image, category: str = ""
+    ) -> Tuple[float, np.ndarray]:
+        lowres_map = np.zeros((14, 14), dtype=np.float32)
+        return 0.0, lowres_map
+
+
+class FAPromptWrapper(BaseModelWrapper):
+    """Wrapper for FAPrompt model."""
+
+    def __init__(self, checkpoint_path: str = "", **kwargs):
+        super().__init__("FAPrompt", **kwargs)
+        self.checkpoint_path = checkpoint_path
+
+    def load_model(self) -> None:
+        pass
+
+    def forward_raw(
+        self, image: Image.Image, category: str = ""
+    ) -> Tuple[float, np.ndarray]:
+        lowres_map = np.zeros((14, 14), dtype=np.float32)
+        return 0.0, lowres_map
+
+
+class AnomalyCLIPWrapper(BaseModelWrapper):
+    """Wrapper for AnomalyCLIP model."""
+
+    def __init__(
+        self,
+        checkpoint_path: str = "",
+        anomalyclip_root: str = "",
+        image_size: int = 518,
+        features_list: Optional[Sequence[int]] = None,
+        feature_map_layer: Optional[Sequence[int]] = None,
+        depth: int = 9,
+        n_ctx: int = 12,
+        t_n_ctx: int = 4,
+        dpam_layer: int = 20,
+        clip_download_root: str = "",
+        **kwargs,
+    ):
+        super().__init__("AnomalyCLIP", **kwargs)
+        self.checkpoint_path = checkpoint_path
+        self.anomalyclip_root = anomalyclip_root
+        self.image_size = image_size
+        self.features_list = _as_tuple(features_list, (6, 12, 18, 24))
+        self.feature_map_layer = _as_tuple(feature_map_layer, (0, 1, 2, 3))
+        self.depth = depth
+        self.n_ctx = n_ctx
+        self.t_n_ctx = t_n_ctx
+        self.dpam_layer = dpam_layer
+        self.clip_download_root = clip_download_root
+        self.preprocess = None
+        self.prompt_learner = None
+        self.text_features = None
+        self._anomalyclip_lib = None
+
+    def load_model(self) -> None:
+        root = self._find_anomalyclip_root()
+        root_str = str(root)
+        if root_str in sys.path:
+            sys.path.remove(root_str)
+        sys.path.insert(0, root_str)
+        importlib.invalidate_caches()
+
+        for module_name in ("utils", "prompt_ensemble"):
+            module = sys.modules.get(module_name)
+            module_file = getattr(module, "__file__", "") if module else ""
+            if module and not str(module_file).startswith(root_str):
+                sys.modules.pop(module_name, None)
+
+        try:
+            AnomalyCLIP_lib = importlib.import_module("AnomalyCLIP_lib")
+            prompt_module = importlib.import_module("prompt_ensemble")
+            utils_module = importlib.import_module("utils")
+        except ImportError as exc:
+            raise ImportError(
+                f"Failed to import AnomalyCLIP from {root}. The source "
+                "directory exists, but one of its Python dependencies or "
+                f"modules failed to import. Original error: {exc!r}"
+            ) from exc
+        AnomalyCLIP_PromptLearner = prompt_module.AnomalyCLIP_PromptLearner
+        get_transform = utils_module.get_transform
+
+        checkpoint_path = self._find_checkpoint(root)
+        parameters = {
+            "Prompt_length": self.n_ctx,
+            "learnabel_text_embedding_depth": self.depth,
+            "learnabel_text_embedding_length": self.t_n_ctx,
+        }
+
+        load_kwargs = {
+            "device": self.device,
+            "design_details": parameters,
+            "download_root": str(
+                Path(
+                    self.clip_download_root
+                    or os.environ.get("ANOMALYCLIP_CLIP_CACHE", "")
+                    or Path.home() / ".cache" / "clip"
+                ).expanduser()
+            ),
+        }
+
+        model, _ = AnomalyCLIP_lib.load("ViT-L/14@336px", **load_kwargs)
+        model.eval()
+
+        transform_args = SimpleNamespace(image_size=self.image_size)
+        self.preprocess, _ = get_transform(transform_args)
+
+        prompt_learner = AnomalyCLIP_PromptLearner(model.to("cpu"), parameters)
+        checkpoint = torch.load(
+            checkpoint_path,
+            map_location=self.device if torch.cuda.is_available() else "cpu",
+        )
+        if "prompt_learner" not in checkpoint:
+            raise KeyError(
+                f"Checkpoint {checkpoint_path} does not contain 'prompt_learner'."
+            )
+        prompt_learner.load_state_dict(checkpoint["prompt_learner"])
+        prompt_learner.to(self.device)
+
+        model.to(self.device)
+        model.visual.DAPM_replace(DPAM_layer=self.dpam_layer)
+
+        with torch.no_grad():
+            prompts, tokenized_prompts, compound_prompts_text = prompt_learner(
+                cls_id=None
+            )
+            text_features = model.encode_text_learn(
+                prompts, tokenized_prompts, compound_prompts_text
+            ).float()
+            text_features = torch.stack(
+                torch.chunk(text_features, dim=0, chunks=2), dim=1
+            )
+            text_features = text_features / text_features.norm(
+                dim=-1, keepdim=True
+            )
+
+        self.model = model
+        self.prompt_learner = prompt_learner
+        self.text_features = text_features
+        self._anomalyclip_lib = AnomalyCLIP_lib
+
+    def _find_anomalyclip_root(self) -> Path:
+        harness_dir = Path(__file__).resolve().parent
+        candidates = [
+            self.anomalyclip_root,
+            os.environ.get("ANOMALYCLIP_ROOT"),
+            self.kwargs.get("model_root"),
+            "AnomalyCLIP",
+            "../AnomalyCLIP",
+            "../../AnomalyCLIP",
+            str(harness_dir.parent / "AnomalyCLIP"),
+            str(harness_dir.parent.parent / "AnomalyCLIP"),
+            str(harness_dir.parent.parent.parent / "AnomalyCLIP"),
+        ]
+        for candidate in candidates:
+            path = _resolve_existing_path(candidate)
+            if path and (path / "AnomalyCLIP_lib").exists():
+                return path
+        raise FileNotFoundError(
+            "Could not locate the AnomalyCLIP source directory. Pass "
+            "anomalyclip_root=... or set ANOMALYCLIP_ROOT to a clone of "
+            "https://github.com/zqhang/AnomalyCLIP."
+        )
+
+    def _find_checkpoint(self, root: Path) -> Path:
+        path = _resolve_existing_path(self.checkpoint_path)
+        if path and path.is_file():
+            return path
+        if path and path.is_dir():
+            epoch_path = path / "epoch_15.pth"
+            if epoch_path.exists():
+                return epoch_path
+            pth_files = sorted(path.glob("*.pth"))
+            if pth_files:
+                return pth_files[-1]
+
+        env_path = _resolve_existing_path(os.environ.get("ANOMALYCLIP_CHECKPOINT"))
+        if env_path and env_path.is_file():
+            return env_path
+
+        defaults = [
+            root / "checkpoints" / "9_12_4_multiscale" / "epoch_15.pth",
+            root / "checkpoints" / "9_12_4_multiscale_visa" / "epoch_15.pth",
+        ]
+        for candidate in defaults:
+            if candidate.exists():
+                return candidate
+
+        raise FileNotFoundError(
+            "Could not locate AnomalyCLIP checkpoint. Pass checkpoint_path=... "
+            "or set ANOMALYCLIP_CHECKPOINT."
+        )
+
+    def forward_raw(
+        self, image: Image.Image, category: str = ""
+    ) -> Tuple[float, np.ndarray]:
+        scores, lowres_maps = self.forward_raw_batch([image], category=category)
+        return float(scores[0]), lowres_maps[0]
+
+    def forward_raw_batch(
+        self, images: Sequence[Image.Image], category: str = ""
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        if self.model is None or self.preprocess is None or self.text_features is None:
+            raise RuntimeError("AnomalyCLIP model is not loaded. Call load_model() first.")
+        if not images:
+            return (
+                np.zeros((0,), dtype=np.float32),
+                np.zeros((0, 0, 0), dtype=np.float32),
+            )
+        if not all(isinstance(image, Image.Image) for image in images):
+            raise TypeError("AnomalyCLIPWrapper.forward_raw_batch expects PIL images.")
+
+        image_tensor = torch.stack(
+            [self.preprocess(image.convert("RGB")) for image in images]
+        ).to(self.device, non_blocking=True)
+
+        with torch.inference_mode():
+            image_features, patch_features = self.model.encode_image(
+                image_tensor,
+                list(self.features_list),
+                DPAM_layer=self.dpam_layer,
+            )
+            image_features = image_features / image_features.norm(
+                dim=-1, keepdim=True
+            )
+            text_probs = image_features @ self.text_features[0].T
+            text_probs = (text_probs / 0.07).softmax(-1)
+            anomaly_scores = text_probs[:, 1]
+
+            lowres_maps = []
+            selected_layers = set(self.feature_map_layer)
+            for idx, patch_feature in enumerate(patch_features):
+                if idx not in selected_layers:
+                    continue
+                patch_feature = patch_feature / patch_feature.norm(
+                    dim=-1, keepdim=True
+                )
+                similarity, _ = self._anomalyclip_lib.compute_similarity(
+                    patch_feature, self.text_features[0]
+                )
+                patch_similarity = similarity[:, 1:, :]
+                side = int(patch_similarity.shape[1] ** 0.5)
+                if side * side != patch_similarity.shape[1]:
+                    raise ValueError(
+                        "AnomalyCLIP patch tokens do not form a square map: "
+                        f"{patch_similarity.shape[1]} tokens."
+                    )
+                similarity_map = patch_similarity.reshape(
+                    patch_similarity.shape[0], side, side, -1
+                )
+                anomaly_map = (
+                    similarity_map[..., 1] + 1 - similarity_map[..., 0]
+                ) / 2.0
+                lowres_maps.append(anomaly_map)
+
+            if not lowres_maps:
+                raise RuntimeError("No AnomalyCLIP patch features were selected.")
+
+            lowres_map = torch.stack(lowres_maps).sum(dim=0)
+
+        return (
+            anomaly_scores.detach().cpu().numpy().astype(np.float32),
+            lowres_map.detach().cpu().numpy().astype(np.float32),
+        )
+
+
+class AdaCLIPWrapper(BaseModelWrapper):
+    """Wrapper for AdaCLIP model."""
+
+    def __init__(self, checkpoint_path: str = "", **kwargs):
+        super().__init__("AdaCLIP", **kwargs)
+        self.checkpoint_path = checkpoint_path
+
+    def load_model(self) -> None:
+        pass
+
+    def forward_raw(
+        self, image: Image.Image, category: str = ""
+    ) -> Tuple[float, np.ndarray]:
+        lowres_map = np.zeros((14, 14), dtype=np.float32)
+        return 0.0, lowres_map
+
+
+class AACLIPWrapper(BaseModelWrapper):
+    """Wrapper for AA-CLIP model."""
+
+    metric_map_align_corners = True
+    condition_postprocessing = True
+
+    _REAL_NAMES: Dict[str, str] = {
+        "bottle": "dark bottle",
+        "cable": "top view of three cables",
+        "capsule": "black and orange capsule",
+        "carpet": "gray carpet",
+        "grid": "metal or plastic mesh",
+        "hazelnut": "single brown hazelnut",
+        "leather": "brown leather",
+        "metal_nut": "metal nut which has four notched edges",
+        "pill": "oval white pill with small red speckles and the letters 'FF' engraved",
+        "screw": "screw",
+        "tile": "speckled tile surface",
+        "transistor": "a three-legged transistor placed vertically",
+        "toothbrush": "toothbrush head",
+        "wood": "wood surface",
+        "zipper": "a black zipper",
+        "candle": "candle",
+        "pcb3": "infrared sensor pcb module",
+        "capsules": "capsules",
+        "pipe_fryum": "pipe-shaped fryum",
+        "pcb4": "battery charging pcb module",
+        "macaroni2": "scattered yellow macaroni",
+        "pcb2": "integrated circuits board",
+        "chewinggum": "chewing gum",
+        "macaroni1": "orange macaroni",
+        "cashew": "cashew nut",
+        "fryum": "wheel-shaped fryum snack",
+        "pcb1": "dual ultrasonic distance sensor pcb module",
+    }
+    _PROMPT_NORMAL = ["{}", "a {}", "the {}"]
+    _PROMPT_ABNORMAL = [
+        "a damaged {}",
+        "a broken {}",
+        "a {} with flaw",
+        "a {} with defect",
+        "a {} with damage",
+    ]
+    _PROMPT_TEMPLATES = ["{}.", "a photo of {}."]
+
+    def __init__(
+        self,
+        checkpoint_path: str = "",
+        aaclip_root: str = "",
+        clip_weight_path: str = "",
+        clip_model_name: str = "ViT-L-14-336",
+        image_size: int = 518,
+        text_adapt_weight: float = 0.1,
+        image_adapt_weight: float = 0.1,
+        text_adapt_until: int = 3,
+        image_adapt_until: int = 6,
+        levels: Optional[Sequence[int]] = None,
+        relu: bool = False,
+        apply_score_blur: bool = True,
+        **kwargs,
+    ):
+        super().__init__("AA-CLIP", **kwargs)
+        self.checkpoint_path = checkpoint_path
+        self.aaclip_root = aaclip_root
+        self.clip_weight_path = clip_weight_path
+        self.clip_model_name = clip_model_name
+        self.image_size = image_size
+        self.text_adapt_weight = text_adapt_weight
+        self.image_adapt_weight = image_adapt_weight
+        self.text_adapt_until = text_adapt_until
+        self.image_adapt_until = image_adapt_until
+        self.levels = list(_as_tuple(levels, (6, 12, 18, 24)))
+        self.relu = relu
+        self.apply_score_blur = apply_score_blur
+        self.clip_model = None
+        self.preprocess = None
+        self.tokenize = None
+        self.gaussian_blur2d = None
+        self.text_encoder = None
+        self.adapt_text = False
+        self._text_feature_cache: Dict[str, torch.Tensor] = {}
+
+    def load_model(self) -> None:
+        root = self._find_aaclip_root()
+        self._prepare_imports(root)
+
+        try:
+            clip_module = importlib.import_module("model.clip")
+            adapter_module = importlib.import_module("model.adapter")
+            tokenizer_module = importlib.import_module("model.tokenizer")
+            from torchvision import transforms
+            from kornia.filters import gaussian_blur2d
+        except ImportError as exc:
+            raise ImportError(
+                f"Failed to import AA-CLIP from {root}. Install the official "
+                "requirements and ensure the cloned repository is complete. "
+                f"Original error: {exc!r}"
+            ) from exc
+
+        clip_weight = self._find_clip_weight(root)
+        clip_module._MODEL_CKPT_PATHS[self.clip_model_name] = clip_weight
+
+        self.clip_model = clip_module.create_model(
+            model_name=self.clip_model_name,
+            img_size=self.image_size,
+            device=self.device,
+            pretrained="openai",
+            require_pretrained=True,
+        )
+        self.clip_model.eval()
+
+        model = adapter_module.AdaptedCLIP(
+            clip_model=self.clip_model,
+            text_adapt_weight=self.text_adapt_weight,
+            image_adapt_weight=self.image_adapt_weight,
+            text_adapt_until=self.text_adapt_until,
+            image_adapt_until=self.image_adapt_until,
+            levels=self.levels,
+            relu=self.relu,
+        ).to(self.device)
+        model.eval()
+
+        image_checkpoint, text_checkpoint = self._find_adapter_checkpoints(root)
+        image_state = self._load_checkpoint_section(
+            image_checkpoint, "image_adapter"
+        )
+        model.image_adapter.load_state_dict(image_state)
+
+        if text_checkpoint:
+            text_state = self._load_checkpoint_section(
+                text_checkpoint, "text_adapter"
+            )
+            model.text_adapter.load_state_dict(text_state)
+            self.adapt_text = True
+            self.text_encoder = model
+        else:
+            self.adapt_text = False
+            self.text_encoder = self.clip_model
+
+        self.preprocess = transforms.Compose(
+            [
+                transforms.Resize((self.image_size, self.image_size), Image.BICUBIC),
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    mean=(0.48145466, 0.4578275, 0.40821073),
+                    std=(0.26862954, 0.26130258, 0.27577711),
+                ),
+            ]
+        )
+        self.tokenize = tokenizer_module.tokenize
+        self.gaussian_blur2d = gaussian_blur2d
+        self.model = model
+
+    def _find_aaclip_root(self) -> Path:
+        harness_dir = Path(__file__).resolve().parent
+        candidates = [
+            self.aaclip_root,
+            os.environ.get("AACLIP_ROOT"),
+            self.kwargs.get("model_root"),
+            "AA-CLIP",
+            "../AA-CLIP",
+            "../../AA-CLIP",
+            str(harness_dir.parent / "AA-CLIP"),
+            str(harness_dir.parent.parent / "AA-CLIP"),
+            str(harness_dir.parent.parent.parent / "AA-CLIP"),
+        ]
+        for candidate in candidates:
+            path = _resolve_existing_path(candidate)
+            if (
+                path
+                and (path / "model" / "clip.py").exists()
+                and (path / "model" / "adapter.py").exists()
+            ):
+                return path
+        raise FileNotFoundError(
+            "Could not locate the AA-CLIP source directory. Pass "
+            "aaclip_root=... or set AACLIP_ROOT to a clone of "
+            "https://github.com/Mwxinnn/AA-CLIP."
+        )
+
+    def _prepare_imports(self, root: Path) -> None:
+        root_str = str(root)
+        if root_str in sys.path:
+            sys.path.remove(root_str)
+        sys.path.insert(0, root_str)
+        importlib.invalidate_caches()
+
+        prefixes = ("model", "dataset")
+        exact_names = {"utils", "forward_utils"}
+        for module_name in list(sys.modules):
+            if (
+                module_name in exact_names
+                or any(
+                    module_name == prefix or module_name.startswith(f"{prefix}.")
+                    for prefix in prefixes
+                )
+            ):
+                sys.modules.pop(module_name, None)
+
+    def _find_clip_weight(self, root: Path) -> Path:
+        candidates = [
+            self.clip_weight_path,
+            os.environ.get("AACLIP_CLIP_WEIGHT"),
+            str(root / "model" / "ViT-L-14-336px.pt"),
+            str(root / "ViT-L-14-336px.pt"),
+        ]
+        for candidate in candidates:
+            path = _resolve_existing_path(candidate)
+            if path and path.is_file():
+                return path
+        raise FileNotFoundError(
+            "Could not locate AA-CLIP's OpenAI CLIP weight "
+            "ViT-L-14-336px.pt. Pass clip_weight_path=..., set "
+            "AACLIP_CLIP_WEIGHT, or place the file under AA-CLIP/model/."
+        )
+
+    def _checkpoint_roots(self, root: Path) -> Sequence[Path]:
+        candidates = [
+            self.checkpoint_path,
+            os.environ.get("AACLIP_CHECKPOINT"),
+            os.environ.get("AACLIP_SAVE_PATH"),
+            str(root / "ckpt" / "baseline"),
+            str(root / "checkpoints"),
+        ]
+        roots = []
+        for candidate in candidates:
+            path = _resolve_existing_path(candidate)
+            if path:
+                roots.append(path)
+        return roots
+
+    def _find_adapter_checkpoints(self, root: Path) -> Tuple[Path, Optional[Path]]:
+        image_candidates = []
+        text_candidates = []
+
+        for path in self._checkpoint_roots(root):
+            if path.is_file():
+                if path.name == "text_adapter.pth":
+                    text_candidates.append(path)
+                    image_candidates.extend(sorted(path.parent.glob("image_adapter_*.pth")))
+                else:
+                    image_candidates.append(path)
+                    text_path = path.parent / "text_adapter.pth"
+                    if text_path.exists():
+                        text_candidates.append(text_path)
+            elif path.is_dir():
+                image_candidates.extend(sorted(path.glob("image_adapter_*.pth")))
+                image_candidates.extend(sorted(path.glob("*image_adapter*.pth")))
+                image_candidates.extend(sorted(path.rglob("image_adapter_*.pth")))
+                text_path = path / "text_adapter.pth"
+                if text_path.exists():
+                    text_candidates.append(text_path)
+
+        image_candidates = list(dict.fromkeys(image_candidates))
+        text_candidates = list(dict.fromkeys(text_candidates))
+        for image_path in reversed(image_candidates):
+            if self._checkpoint_has_key(image_path, "image_adapter"):
+                same_dir_text = image_path.parent / "text_adapter.pth"
+                if same_dir_text.exists():
+                    text_path = same_dir_text
+                else:
+                    text_path = text_candidates[-1] if text_candidates else None
+                return image_path, text_path
+
+        searched = "\n".join(f"  - {path}" for path in self._checkpoint_roots(root))
+        raise FileNotFoundError(
+            "Could not locate an AA-CLIP image adapter checkpoint. Pass "
+            "checkpoint_path=... pointing to an image_adapter_*.pth file or "
+            f"a save directory. Checked:\n{searched}"
+        )
+
+    def _checkpoint_has_key(self, checkpoint_path: Path, key: str) -> bool:
+        try:
+            checkpoint = torch.load(checkpoint_path, map_location="cpu")
+        except Exception:
+            return False
+        return isinstance(checkpoint, dict) and key in checkpoint
+
+    def _load_checkpoint_section(self, checkpoint_path: Path, key: str) -> Dict[str, Any]:
+        map_location = self.device if torch.cuda.is_available() else "cpu"
+        checkpoint = torch.load(checkpoint_path, map_location=map_location)
+        if not isinstance(checkpoint, dict) or key not in checkpoint:
+            raise KeyError(f"Checkpoint {checkpoint_path} does not contain '{key}'.")
+        return checkpoint[key]
+
+    def _get_text_features(self, category: str) -> torch.Tensor:
+        category = category or "object"
+        if category in self._text_feature_cache:
+            return self._text_feature_cache[category]
+
+        real_name = self._REAL_NAMES.get(category, category.replace("_", " "))
+        text_features = []
+        prompt_states = (self._PROMPT_NORMAL, self._PROMPT_ABNORMAL)
+
+        with torch.no_grad():
+            for states in prompt_states:
+                prompted_sentence = []
+                for state in states:
+                    prompted_state = state.format(real_name)
+                    for template in self._PROMPT_TEMPLATES:
+                        prompted_sentence.append(template.format(prompted_state))
+                tokens = self.tokenize(prompted_sentence).to(self.device)
+                class_embeddings = self.text_encoder.encode_text(tokens)
+                class_embeddings = F.normalize(class_embeddings, dim=-1)
+                class_embedding = class_embeddings.mean(dim=0)
+                class_embedding = F.normalize(class_embedding, dim=0)
+                text_features.append(class_embedding)
+
+        text_features = torch.stack(text_features, dim=1).to(self.device)
+        self._text_feature_cache[category] = text_features
+        return text_features
+
+    def forward_raw(
+        self, image: Image.Image, category: str = ""
+    ) -> Tuple[float, np.ndarray]:
+        scores, lowres_maps = self.forward_raw_batch([image], category=category)
+        return float(scores[0]), lowres_maps[0]
+
+    def forward_raw_batch(
+        self, images: Sequence[Image.Image], category: str = ""
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        if self.model is None or self.preprocess is None:
+            raise RuntimeError("AA-CLIP model is not loaded. Call load_model() first.")
+        if not images:
+            return (
+                np.zeros((0,), dtype=np.float32),
+                np.zeros((0, 0, 0), dtype=np.float32),
+            )
+        if not all(isinstance(image, Image.Image) for image in images):
+            raise TypeError("AACLIPWrapper.forward_raw_batch expects PIL images.")
+
+        image_tensor = torch.stack(
+            [self.preprocess(image.convert("RGB")) for image in images]
+        ).to(self.device, non_blocking=True)
+
+        with torch.inference_mode():
+            text_features = self._get_text_features(category)
+            patch_features, det_feature = self.model(image_tensor)
+
+            image_logits = det_feature @ text_features
+            anomaly_scores = (image_logits[:, 1] + 1.0) / 2.0
+
+            lowres_maps = []
+            for patch_feature in patch_features:
+                patch_scores = 100.0 * torch.matmul(patch_feature, text_features)
+                batch_size, token_count, channel_count = patch_scores.shape
+                if channel_count != 2:
+                    raise ValueError(
+                        "AA-CLIP patch scores should have normal/abnormal "
+                        f"channels, got {channel_count}."
+                    )
+                side = int(token_count ** 0.5)
+                if side * side != token_count:
+                    raise ValueError(
+                        "AA-CLIP patch tokens do not form a square map: "
+                        f"{token_count} tokens."
+                    )
+                patch_scores = patch_scores.permute(0, 2, 1).view(
+                    batch_size, channel_count, side, side
+                )
+                lowres_map = (
+                    patch_scores[:, 1] + 1.0 - patch_scores[:, 0]
+                ) / 2.0
+                if self.apply_score_blur:
+                    lowres_map = self.gaussian_blur2d(
+                        lowres_map.unsqueeze(1), (7, 7), (1, 1)
+                    ).squeeze(1)
+                lowres_maps.append(lowres_map)
+
+            if not lowres_maps:
+                raise RuntimeError("AA-CLIP returned no patch features.")
+
+            lowres_map = torch.stack(lowres_maps).sum(dim=0)
+
+        return (
+            anomaly_scores.detach().cpu().numpy().astype(np.float32),
+            lowres_map.detach().cpu().numpy().astype(np.float32),
+        )
+
+    def postprocess_condition_outputs(
+        self,
+        scores: np.ndarray,
+        anomaly_maps: Sequence[np.ndarray],
+    ) -> Tuple[np.ndarray, Sequence[np.ndarray]]:
+        """Apply the official AA-CLIP industrial score normalization/fusion."""
+        return postprocess_aaclip_industrial_condition(scores, anomaly_maps)
+
+    def release(self) -> None:
+        self._text_feature_cache.clear()
+        self.clip_model = None
+        self.preprocess = None
+        self.tokenize = None
+        self.gaussian_blur2d = None
+        self.text_encoder = None
+        super().release()
+
+
+class BayesPFLWrapper(BaseModelWrapper):
+    """Wrapper for Bayes-PFL model."""
+
+    def __init__(self, checkpoint_path: str = "", **kwargs):
+        super().__init__("Bayes-PFL", **kwargs)
+        self.checkpoint_path = checkpoint_path
+
+    def load_model(self) -> None:
+        pass
+
+    def forward_raw(
+        self, image: Image.Image, category: str = ""
+    ) -> Tuple[float, np.ndarray]:
+        lowres_map = np.zeros((14, 14), dtype=np.float32)
+        return 0.0, lowres_map
+
+
+class AFCLIPWrapper(BaseModelWrapper):
+    """Wrapper for the official AF-CLIP zero-shot inference implementation."""
+
+    def __init__(
+        self,
+        checkpoint_path: str = "",
+        afclip_root: str = "",
+        prompt_checkpoint_path: str = "",
+        adaptor_checkpoint_path: str = "",
+        weight_dataset: str = "mvtec",
+        clip_weight_path: str = "",
+        clip_model_name: str = "ViT-L/14@336px",
+        clip_download_dir: str = "",
+        image_size: int = 518,
+        prompt_len: int = 12,
+        feature_layers: Optional[Sequence[int]] = None,
+        memory_layers: Optional[Sequence[int]] = None,
+        alpha: float = 0.1,
+        **kwargs,
+    ):
+        super().__init__("AF-CLIP", **kwargs)
+        self.checkpoint_path = checkpoint_path
+        self.afclip_root = afclip_root
+        self.prompt_checkpoint_path = prompt_checkpoint_path
+        self.adaptor_checkpoint_path = adaptor_checkpoint_path
+        self.weight_dataset = weight_dataset.lower().strip()
+        self.clip_weight_path = clip_weight_path
+        self.clip_model_name = clip_model_name
+        self.clip_download_dir = clip_download_dir
+        self.image_size = image_size
+        self.prompt_len = prompt_len
+        self.feature_layers = list(_as_tuple(feature_layers, (6, 12, 18, 24)))
+        self.memory_layers = list(_as_tuple(memory_layers, (6, 12, 18, 24)))
+        self.alpha = alpha
+        self.preprocess = None
+        self._args = None
+
+    def load_model(self) -> None:
+        if self.weight_dataset not in {"mvtec", "visa"}:
+            raise ValueError(
+                "AF-CLIP weight_dataset must be 'mvtec' or 'visa', got "
+                f"{self.weight_dataset!r}."
+            )
+
+        root = self._find_afclip_root()
+        self._prepare_imports(root)
+
+        try:
+            clip_module = importlib.import_module("clip.clip")
+            from torchvision import transforms
+        except ImportError as exc:
+            raise ImportError(
+                f"Failed to import AF-CLIP from {root}. Install the official "
+                "requirements and ensure the cloned repository is complete. "
+                f"Original error: {exc!r}"
+            ) from exc
+
+        clip_source = self._find_clip_weight(root)
+        download_root = Path(
+            self.clip_download_dir
+            or os.environ.get("AFCLIP_CLIP_DOWNLOAD_DIR", "")
+            or root / "download" / "clip"
+        )
+        model, preprocess = clip_module.load(
+            name=str(clip_source) if clip_source else self.clip_model_name,
+            jit=False,
+            device=self.device,
+            download_root=str(download_root),
+        )
+        model.eval()
+        for parameter in model.parameters():
+            parameter.requires_grad_(False)
+
+        self._args = SimpleNamespace(
+            prompt_len=self.prompt_len,
+            img_size=self.image_size,
+            feature_layers=self.feature_layers,
+            memory_layers=self.memory_layers,
+            alpha=self.alpha,
+        )
+        model.insert(args=self._args, tokenizer=clip_module.tokenize, device=self.device)
+
+        prompt_checkpoint, adaptor_checkpoint = self._find_checkpoints(root)
+        prompt_object = self._load_full_checkpoint(prompt_checkpoint)
+        adaptor_object = self._load_full_checkpoint(adaptor_checkpoint)
+        self._install_prompt(model, prompt_object, prompt_checkpoint)
+        self._install_adaptor(model, adaptor_object, adaptor_checkpoint)
+
+        # Match AF-CLIP main.py exactly: force square 518x518 preprocessing.
+        preprocess.transforms[0] = transforms.Resize(
+            size=(self.image_size, self.image_size),
+            interpolation=transforms.InterpolationMode.BICUBIC,
+        )
+        preprocess.transforms[1] = transforms.CenterCrop(
+            size=(self.image_size, self.image_size)
+        )
+
+        model.to(self.device).eval()
+        self.preprocess = preprocess
+        self.model = model
+
+    def _find_afclip_root(self) -> Path:
+        harness_dir = Path(__file__).resolve().parent
+        candidates = [
+            self.afclip_root,
+            os.environ.get("AFCLIP_ROOT"),
+            self.kwargs.get("model_root"),
+            "AF-CLIP",
+            "../AF-CLIP",
+            "../../AF-CLIP",
+            str(harness_dir.parent / "AF-CLIP"),
+            str(harness_dir.parent.parent / "AF-CLIP"),
+            str(harness_dir.parent.parent.parent / "AF-CLIP"),
+        ]
+        for candidate in candidates:
+            path = _resolve_existing_path(candidate)
+            if (
+                path
+                and (path / "clip" / "clip.py").exists()
+                and (path / "clip" / "model.py").exists()
+                and (path / "clip" / "adaptor.py").exists()
+            ):
+                return path
+        raise FileNotFoundError(
+            "Could not locate the AF-CLIP source directory. Pass "
+            "afclip_root=... or set AFCLIP_ROOT to a clone of "
+            "https://github.com/Faustinaqq/AF-CLIP."
+        )
+
+    def _prepare_imports(self, root: Path) -> None:
+        root_str = str(root)
+        if root_str in sys.path:
+            sys.path.remove(root_str)
+        sys.path.insert(0, root_str)
+        importlib.invalidate_caches()
+
+        # AF-CLIP ships its own modified package named ``clip``. Remove any
+        # previously imported OpenAI/third-party clip package before loading it.
+        for module_name in list(sys.modules):
+            if module_name == "clip" or module_name.startswith("clip."):
+                sys.modules.pop(module_name, None)
+
+    def _find_clip_weight(self, root: Path) -> Optional[Path]:
+        candidates = [
+            self.clip_weight_path,
+            os.environ.get("AFCLIP_CLIP_WEIGHT"),
+            str(root / "download" / "clip" / "ViT-L-14-336px.pt"),
+            str(root / "ViT-L-14-336px.pt"),
+        ]
+        for candidate in candidates:
+            path = _resolve_existing_path(candidate)
+            if path and path.is_file():
+                return path
+        return None
+
+    def _find_checkpoints(self, root: Path) -> Tuple[Path, Path]:
+        prompt_name = f"{self.weight_dataset}_prompt.pt"
+        adaptor_name = f"{self.weight_dataset}_adaptor.pt"
+
+        prompt_candidates = [self.prompt_checkpoint_path]
+        adaptor_candidates = [self.adaptor_checkpoint_path]
+        checkpoint_root = _resolve_existing_path(self.checkpoint_path)
+        if checkpoint_root:
+            if checkpoint_root.is_dir():
+                prompt_candidates.append(str(checkpoint_root / prompt_name))
+                adaptor_candidates.append(str(checkpoint_root / adaptor_name))
+            elif checkpoint_root.name.endswith("_prompt.pt"):
+                prompt_candidates.append(str(checkpoint_root))
+                adaptor_candidates.append(str(checkpoint_root.with_name(adaptor_name)))
+            elif checkpoint_root.name.endswith("_adaptor.pt"):
+                adaptor_candidates.append(str(checkpoint_root))
+                prompt_candidates.append(str(checkpoint_root.with_name(prompt_name)))
+
+        prompt_candidates.extend(
+            [
+                os.environ.get("AFCLIP_PROMPT_CHECKPOINT"),
+                str(root / "weight" / prompt_name),
+            ]
+        )
+        adaptor_candidates.extend(
+            [
+                os.environ.get("AFCLIP_ADAPTOR_CHECKPOINT"),
+                str(root / "weight" / adaptor_name),
+            ]
+        )
+
+        prompt_path = next(
+            (
+                path
+                for candidate in prompt_candidates
+                if (path := _resolve_existing_path(candidate)) and path.is_file()
+            ),
+            None,
+        )
+        adaptor_path = next(
+            (
+                path
+                for candidate in adaptor_candidates
+                if (path := _resolve_existing_path(candidate)) and path.is_file()
+            ),
+            None,
+        )
+        if prompt_path is None or adaptor_path is None:
+            raise FileNotFoundError(
+                "Could not locate AF-CLIP's dataset-specific checkpoints. "
+                f"Expected {prompt_name} and {adaptor_name} under {root / 'weight'}, "
+                "or pass checkpoint_path/prompt_checkpoint_path/"
+                "adaptor_checkpoint_path explicitly."
+            )
+        return prompt_path, adaptor_path
+
+    def _load_full_checkpoint(self, checkpoint_path: Path) -> Any:
+        # The official repository stores complete Parameter/Module objects, not
+        # plain state_dicts. PyTorch 2.6 therefore requires weights_only=False.
+        try:
+            return torch.load(
+                checkpoint_path,
+                map_location=self.device,
+                weights_only=False,
+            )
+        except TypeError:
+            return torch.load(checkpoint_path, map_location=self.device)
+
+    def _install_prompt(
+        self, model: nn.Module, checkpoint: Any, checkpoint_path: Path
+    ) -> None:
+        prompt = checkpoint
+        if isinstance(prompt, dict):
+            for key in ("state_prompt_embedding", "prompt", "weight"):
+                if key in prompt:
+                    prompt = prompt[key]
+                    break
+        if not isinstance(prompt, (torch.Tensor, nn.Parameter)):
+            raise TypeError(
+                f"AF-CLIP prompt checkpoint {checkpoint_path} must contain a tensor, "
+                f"got {type(prompt).__name__}."
+            )
+        expected_shape = tuple(model.state_prompt_embedding.shape)
+        if tuple(prompt.shape) != expected_shape:
+            raise ValueError(
+                f"AF-CLIP prompt shape mismatch in {checkpoint_path}: expected "
+                f"{expected_shape}, got {tuple(prompt.shape)}."
+            )
+        prompt = prompt.detach().to(
+            device=self.device,
+            dtype=model.token_embedding.weight.dtype,
+        )
+        model.state_prompt_embedding = nn.Parameter(prompt, requires_grad=False)
+
+    def _install_adaptor(
+        self, model: nn.Module, checkpoint: Any, checkpoint_path: Path
+    ) -> None:
+        if isinstance(checkpoint, nn.Module):
+            model.adaptor = checkpoint.to(self.device).eval()
+            for parameter in model.adaptor.parameters():
+                parameter.requires_grad_(False)
+            return
+
+        state_dict = checkpoint
+        if isinstance(state_dict, dict):
+            for key in ("adaptor", "state_dict"):
+                value = state_dict.get(key)
+                if isinstance(value, dict):
+                    state_dict = value
+                    break
+        if not isinstance(state_dict, dict):
+            raise TypeError(
+                f"AF-CLIP adaptor checkpoint {checkpoint_path} must contain an "
+                f"nn.Module or state_dict, got {type(checkpoint).__name__}."
+            )
+        model.adaptor.load_state_dict(state_dict)
+        model.adaptor.to(self.device).eval()
+        for parameter in model.adaptor.parameters():
+            parameter.requires_grad_(False)
+
+    def forward_raw(
+        self, image: Image.Image, category: str = ""
+    ) -> Tuple[float, np.ndarray]:
+        scores, lowres_maps = self.forward_raw_batch([image], category=category)
+        return float(scores[0]), lowres_maps[0]
+
+    def forward_raw_batch(
+        self, images: Sequence[Image.Image], category: str = ""
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        if self.model is None or self.preprocess is None or self._args is None:
+            raise RuntimeError("AF-CLIP model is not loaded. Call load_model() first.")
+        if not images:
+            return (
+                np.zeros((0,), dtype=np.float32),
+                np.zeros((0, 0, 0), dtype=np.float32),
+            )
+        if not all(isinstance(image, Image.Image) for image in images):
+            raise TypeError("AFCLIPWrapper.forward_raw_batch expects PIL images.")
+
+        image_tensor = torch.stack(
+            [self.preprocess(image.convert("RGB")) for image in images]
+        ).to(self.device, non_blocking=True)
+
+        with torch.inference_mode():
+            anomaly_scores, anomaly_maps, _ = self.model.detect_forward_seg(
+                image_tensor, self._args
+            )
+
+        if anomaly_maps.ndim != 4 or anomaly_maps.shape[1] != 1:
+            raise ValueError(
+                "AF-CLIP anomaly maps should have shape [B, 1, H, W], got "
+                f"{tuple(anomaly_maps.shape)}."
+            )
+        return (
+            anomaly_scores.detach().cpu().numpy().astype(np.float32),
+            anomaly_maps[:, 0].detach().cpu().numpy().astype(np.float32),
+        )
+
+    def release(self) -> None:
+        self.preprocess = None
+        self._args = None
+        super().release()
+
+
+class CoPSWrapper(BaseModelWrapper):
+    """Wrapper for CoPS model."""
+
+    def __init__(self, checkpoint_path: str = "", **kwargs):
+        super().__init__("CoPS", **kwargs)
+        self.checkpoint_path = checkpoint_path
+
+    def load_model(self) -> None:
+        pass
+
+    def forward_raw(
+        self, image: Image.Image, category: str = ""
+    ) -> Tuple[float, np.ndarray]:
+        lowres_map = np.zeros((14, 14), dtype=np.float32)
+        return 0.0, lowres_map
+
+
+class WinCLIPWrapper(BaseModelWrapper):
+    """Wrapper for WinCLIP (training-free) model."""
+
+    def __init__(self, **kwargs):
+        super().__init__("WinCLIP", **kwargs)
+
+    def load_model(self) -> None:
+        pass
+
+    def forward_raw(
+        self, image: Image.Image, category: str = ""
+    ) -> Tuple[float, np.ndarray]:
+        lowres_map = np.zeros((14, 14), dtype=np.float32)
+        return 0.0, lowres_map
+
+
+class AnoVLWrapper(BaseModelWrapper):
+    """Wrapper for AnoVL (training-free) model."""
+
+    def __init__(self, **kwargs):
+        super().__init__("AnoVL", **kwargs)
+
+    def load_model(self) -> None:
+        pass
+
+    def forward_raw(
+        self, image: Image.Image, category: str = ""
+    ) -> Tuple[float, np.ndarray]:
+        lowres_map = np.zeros((24, 24), dtype=np.float32)
+        return 0.0, lowres_map
+
+
+class MRADWrapper(BaseModelWrapper):
+    """Wrapper for MRAD (training-free) model."""
+
+    def __init__(self, **kwargs):
+        super().__init__("MRAD", **kwargs)
+
+    def load_model(self) -> None:
+        pass
+
+    def forward_raw(
+        self, image: Image.Image, category: str = ""
+    ) -> Tuple[float, np.ndarray]:
+        lowres_map = np.zeros((14, 14), dtype=np.float32)
+        return 0.0, lowres_map
+
+
+class AnomalyAgentWrapper(BaseModelWrapper):
+    """Wrapper for AnomalyAgent (training-free) model."""
+
+    def __init__(self, **kwargs):
+        super().__init__("AnomalyAgent", **kwargs)
+
+    def load_model(self) -> None:
+        pass
+
+    def forward_raw(
+        self, image: Image.Image, category: str = ""
+    ) -> Tuple[float, np.ndarray]:
+        lowres_map = np.zeros((14, 14), dtype=np.float32)
+        return 0.0, lowres_map
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Model Registry
+# ─────────────────────────────────────────────────────────────────────────────
+
+MODEL_REGISTRY: Dict[str, type] = {
+    "VCP-CLIP": VCPCLIPWrapper,
+    "Crane": CraneWrapper,
+    "FAPrompt": FAPromptWrapper,
+    "AnomalyCLIP": AnomalyCLIPWrapper,
+    "AdaCLIP": AdaCLIPWrapper,
+    "AA-CLIP": AACLIPWrapper,
+    "Bayes-PFL": BayesPFLWrapper,
+    "AF-CLIP": AFCLIPWrapper,
+    "CoPS": CoPSWrapper,
+    "WinCLIP": WinCLIPWrapper,
+    "AnoVL": AnoVLWrapper,
+    "MRAD": MRADWrapper,
+    "AnomalyAgent": AnomalyAgentWrapper,
+}
+
+
+def get_model(model_name: str, device: str = "cuda", **kwargs) -> BaseModelWrapper:
+    """Instantiate a model wrapper by name."""
+    if model_name not in MODEL_REGISTRY:
+        raise ValueError(
+            f"Unknown model: {model_name}. "
+            f"Available: {list(MODEL_REGISTRY.keys())}"
+        )
+    return MODEL_REGISTRY[model_name](device=device, **kwargs)

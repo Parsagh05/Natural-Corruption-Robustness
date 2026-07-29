@@ -1,4 +1,4 @@
-# Python bytecode and caches
+# Python bytecode, test output, and caches
 __pycache__/
 *.py[cod]
 *$py.class
@@ -8,7 +8,7 @@ __pycache__/
 .coverage
 htmlcov/
 
-# Virtual environments and local environment files
+# Virtual environments and local configuration
 .venv/
 venv/
 env/
@@ -16,17 +16,20 @@ env/
 .env.*
 !.env.example
 
-# Jupyter-generated files
-.ipynb_checkpoints/
+# Build and packaging output
+build/
+dist/
+*.egg-info/
 
-# IDE and operating-system metadata
+# Jupyter, IDE, and operating-system metadata
+.ipynb_checkpoints/
 .idea/
 .vscode/
 .DS_Store
 Thumbs.db
 Desktop.ini
 
-# Evaluation outputs and caches
+# Generated evaluation artifacts and caches
 outputs/
 corruption_cache/
 checkpoints/
@@ -35,14 +38,14 @@ checkpoints/
 *.ckpt
 *.safetensors
 *.zip
-
-# Local datasets and external model checkouts
-data/
-datasets/
-AnomalyCLIP/
-AF-CLIP/
-
-# Temporary download files
 *.download
 *.tmp
+*.log
 
+# Local datasets and external model checkouts at the repository root.
+# Leading slashes keep checked-in result folders such as zero_shot/AF-CLIP visible.
+/data/
+/datasets/
+/AnomalyCLIP/
+/AA-CLIP/
+/AF-CLIP/
