@@ -1,12 +1,45 @@
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from shared import CORRUPTION_PLAN_ROOT, corruption_plan_path
 from shared.corruption import apply_corruption, stable_corruption_seed
 from shared.imagenet_c.corruptions import brightness
 
 
+class _FakeGrayscaleMotionImage:
+    def __init__(self, blob):
+        self.blob = blob
+
+    def motion_blur(self, radius, sigma, angle):
+        return None
+
+    def make_blob(self):
+        import cv2
+        import numpy as np
+
+        grayscale = np.arange(200 * 300, dtype=np.uint8).reshape(200, 300)
+        success, encoded = cv2.imencode(".png", grayscale)
+        if not success:
+            raise RuntimeError("Test PNG encoding failed.")
+        return encoded.tobytes()
+
+
 class SharedCorruptionAssetsTest(unittest.TestCase):
+    def test_motion_blur_preserves_non_224_grayscale_image_dimensions(self):
+        from PIL import Image
+        from shared.imagenet_c import corruptions
+
+        image = Image.new("RGB", (300, 200), color=(128, 128, 128))
+        with patch.object(
+            corruptions, "MotionImage", _FakeGrayscaleMotionImage
+        ):
+            result = corruptions.motion_blur(image, severity=1)
+
+        self.assertEqual(result.shape, (200, 300, 3))
+        self.assertTrue((result[..., 0] == result[..., 1]).all())
+        self.assertTrue((result[..., 1] == result[..., 2]).all())
+
     def test_dataset_plans_resolve_to_shared_directory(self):
         for dataset in ("mvtec", "visa"):
             with self.subTest(dataset=dataset):

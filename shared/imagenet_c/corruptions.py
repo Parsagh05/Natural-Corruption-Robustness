@@ -220,13 +220,28 @@ def motion_blur(x, severity=1):
 
     x.motion_blur(radius=c[0], sigma=c[1], angle=np.random.uniform(-45, 45))
 
-    x = cv2.imdecode(np.frombuffer(x.make_blob(), np.uint8),
-                     cv2.IMREAD_UNCHANGED)
+    x = cv2.imdecode(
+        np.frombuffer(x.make_blob(), np.uint8), cv2.IMREAD_UNCHANGED
+    )
+    if x is None:
+        raise RuntimeError("ImageMagick motion blur returned an invalid image blob.")
 
-    if x.shape != (224, 224):
-        return np.clip(x[..., [2, 1, 0]], 0, 255)  # BGR to RGB
-    else:  # greyscale to RGB
-        return np.clip(np.array([x, x, x]).transpose((1, 2, 0)), 0, 255)
+    # ImageNet-C identified grayscale by comparing the complete shape to
+    # (224, 224). Industrial images are not fixed at 224, so an HxW grayscale
+    # result was otherwise indexed as if width were a channel axis.
+    if x.ndim == 2:
+        x = np.repeat(x[..., None], 3, axis=2)
+    elif x.ndim == 3 and x.shape[2] == 1:
+        x = np.repeat(x, 3, axis=2)
+    elif x.ndim == 3 and x.shape[2] == 3:
+        x = x[..., [2, 1, 0]]  # BGR to RGB
+    elif x.ndim == 3 and x.shape[2] == 4:
+        x = cv2.cvtColor(x, cv2.COLOR_BGRA2RGB)
+    else:
+        raise RuntimeError(
+            f"Unexpected ImageMagick motion-blur output shape: {x.shape}"
+        )
+    return np.clip(x, 0, 255)
 
 
 def zoom_blur(x, severity=1):

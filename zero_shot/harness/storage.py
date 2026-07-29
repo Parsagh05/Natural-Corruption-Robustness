@@ -79,12 +79,19 @@ class ArtifactStorage:
             return None
 
         zip_path = self.output_root / f"{model_name}_artifacts.zip"
-
-        with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
-            for file_path in model_dir.rglob("*"):
-                if file_path.is_file():
-                    arcname = file_path.relative_to(self.output_root)
-                    zf.write(file_path, arcname)
+        temporary_zip_path = zip_path.with_suffix(zip_path.suffix + ".tmp")
+        try:
+            with zipfile.ZipFile(
+                temporary_zip_path, "w", zipfile.ZIP_DEFLATED
+            ) as zf:
+                for file_path in model_dir.rglob("*"):
+                    if file_path.is_file():
+                        arcname = file_path.relative_to(self.output_root)
+                        zf.write(file_path, arcname)
+            temporary_zip_path.replace(zip_path)
+        finally:
+            if temporary_zip_path.exists():
+                temporary_zip_path.unlink()
 
         shutil.rmtree(model_dir)
         return zip_path

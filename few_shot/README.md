@@ -1,12 +1,144 @@
-# Few-Shot Evaluation
+# Few-Shot Natural Corruption Robustness
 
-This directory is reserved for the future few-shot evaluation pipeline. No
-few-shot implementation is included yet.
+Few-shot evaluation pipeline for MVTec AD and VisA. It shares the exact
+corruption implementation and fixed categorized assignment plans used by the
+zero-shot pipeline, while allowing every few-shot wrapper to keep its official
+preprocessing, checkpoint, map postprocessing, and image-scoring rules.
 
-Few-shot code should reuse the repository-level corruption assets rather than
-copying zero-shot files:
+## Implemented model
 
-- `shared/imagenet_c/` contains the vendored corruption implementation.
-- `shared/corruption_plans/` contains fixed MVTec and VisA assignments.
-- `shared.corruption` exposes deterministic image/mask corruption utilities.
-- `shared.corruption_plan_path(dataset)` resolves the matching plan path.
+- INP-Former: official 1-shot, 2-shot, and 4-shot checkpoints for MVTec AD and
+  VisA (six dataset/checkpoint evaluations).
+
+`harness/models.py` contains a registry and `register_model()` extension point
+for subsequent few-shot models. A new wrapper only needs to implement model
+loading and raw inference; it can optionally override dataset checkpoint
+selection and native metric map/mask preparation.
+
+## Paper-faithful INP-Former inference
+
+The wrapper constructs the architecture from the official
+[`luow23/INP-Former`](https://github.com/luow23/INP-Former) source and loads each
+official `model.pth` with `strict=True`. The official checkpoint is a full state
+dict, including the frozen DINOv2-register encoder, so no separate DINO
+backbone download is required.
+
+The fixed official checkpoint configuration is enforced:
+
+- encoder: `dinov2reg_vit_base_14`
+- resize: 448 x 448
+- center crop: 392 x 392
+- intrinsic normal prototypes: 6
+- encoder targets: blocks 2-9, fused as 2 groups of 4
+- decoder: 8 INP-guided prototype blocks, fused as 2 groups of 4
+- raw anomaly map: mean of the two encoder/decoder cosine-distance maps at
+  28 x 28
+- test map: bilinear 28 -> 392 with `align_corners=True`, bilinear 392 -> 256
+  with `align_corners=False`, then the official 5 x 5 Gaussian filter with
+  sigma 4
+- image score: mean of the largest 1% of values in the final 256 x 256 map
+
+Ground-truth masks follow the official resize-448, center-crop-392, and
+nearest-resize-256 path. Categorized geometric corruptions first transform the
+image and mask with identical deterministic parameters.
+
+## Official six-checkpoint suite
+
+Keep every downloaded `model.pth` in its official directory because all six
+files have the same basename:
+
+```text
+checkpoints/
+|-- INP-Former-Few-Shot-1_dataset=MVTec-AD_Encoder=dinov2reg_vit_base_14_Resize=448_Crop=392_INP_num=6/model.pth
+|-- INP-Former-Few-Shot-1_dataset=VisA_Encoder=dinov2reg_vit_base_14_Resize=448_Crop=392_INP_num=6/model.pth
+|-- INP-Former-Few-Shot-2_dataset=MVTec-AD_Encoder=dinov2reg_vit_base_14_Resize=448_Crop=392_INP_num=6/model.pth
+|-- INP-Former-Few-Shot-2_dataset=VisA_Encoder=dinov2reg_vit_base_14_Resize=448_Crop=392_INP_num=6/model.pth
+|-- INP-Former-Few-Shot-4_dataset=MVTec-AD_Encoder=dinov2reg_vit_base_14_Resize=448_Crop=392_INP_num=6/model.pth
+`-- INP-Former-Few-Shot-4_dataset=VisA_Encoder=dinov2reg_vit_base_14_Resize=448_Crop=392_INP_num=6/model.pth
+```
+
+Official downloads:
+
+| Shot | MVTec AD | VisA |
+|---|---|---|
+| 1 | [model.pth](https://drive.google.com/file/d/1ymAywov3JFFVzwDpcdt9Tj_iFv-mk32c/view?usp=sharing) | [model.pth](https://drive.google.com/file/d/1mwpzXjLmjYLWFDx4dUF1yuErzL37K21p/view?usp=sharing) |
+| 2 | [model.pth](https://drive.google.com/file/d/1K9X8-v1bSy_mgrbVSK0w6Fx525clSTtz/view?usp=sharing) | [model.pth](https://drive.google.com/file/d/1_vlO4OSQSze095ddhkkyRWCOA2IRVLia/view?usp=sharing) |
+| 4 | [model.pth](https://drive.google.com/file/d/15UtpeFveG2azUQmhogoET2HifEyIKSvX/view?usp=sharing) | [model.pth](https://drive.google.com/file/d/1MFZcRNwALdPPv1Wemk5_1WLq76BINdky/view?usp=sharing) |
+
+The included `kaggle_inpformer.ipynb` downloads these public Google Drive files
+directly by default. Enable **Internet** in the Kaggle notebook settings and
+leave `DOWNLOAD_FROM_GOOGLE_DRIVE = True`. Downloads use resumable temporary
+files and are checked for a valid PyTorch archive and plausible size before
+being accepted. If Google Drive temporarily rate-limits the files, upload or
+attach them as a Kaggle dataset, set `DOWNLOAD_FROM_GOOGLE_DRIVE = False`, and
+set `ATTACHED_CHECKPOINT_ROOT` instead.
+
+## Run all six evaluations
+
+From the repository root:
+
+```bash
+python -m pip install -r few_shot/requirements.txt
+git clone https://github.com/luow23/INP-Former.git ../INP-Former
+git -C ../INP-Former checkout --detach 17d265381d9b323a2ef6e05aab0665a85edebe84
+python -m few_shot.scripts.run_inpformer \
+  --mvtec-root /path/to/mvtec_anomaly_detection \
+  --visa-root /path/to/VisA_pytorch/1cls \
+  --inpformer-root ../INP-Former \
+  --checkpoint-root /path/to/checkpoints \
+  --output-root outputs
+```
+
+By default the command runs 1-, 2-, and 4-shot evaluation on both datasets.
+Pass `--shots 1`, `--shots 2`, or `--shots 4` to run only one shot setting.
+By default every dataset/shot pair evaluates `noise`, `blur`, `photometric`, and
+`geometric` at severity levels 1-4, plus one clean baseline by default. Fixed
+plans from `shared/corruption_plans/` use corruption seed 123.
+
+The Kaggle notebook exposes the evaluation protocol in one editable control
+block. `USE_CATEGORIZED_CORRUPTIONS` switches between the categorized and
+uncategorized lists; either list can be reduced to a subset.
+`INCLUDE_CLEAN_BASELINE`, `SEVERITY_LEVELS`, `SHOTS_TO_RUN`, `DEVICE`,
+`BATCH_SIZE`, and the cache settings are independent controls. Set the active
+corruption list to `[]` with `INCLUDE_CLEAN_BASELINE = True` for a clean-only
+run. Keep severity 0 out of `SEVERITY_LEVELS`; it is reserved for clean data.
+
+The Kaggle notebook intentionally leaves `CORRUPTION_CACHE_ROOT = None`. The
+complete categorized plans contain 62,192 dataset-image/condition pairs; a
+lossless full-resolution PNG cache can exceed the notebook's working storage.
+Corruptions remain identical across shots because they are regenerated from
+the same deterministic per-image seed. Enable a cache only when the available
+disk capacity has been checked.
+
+The default `SHOTS_TO_RUN = [1, 2, 4]` launches all six evaluations. The fixed
+plans contain 198,237 image-condition inferences across the complete suite, so
+one free Kaggle session may be insufficient depending on its GPU. Set
+`SHOTS_TO_RUN` to `[1]`, `[2]`, or `[4]` to run one shot (both datasets) per
+session without changing any evaluation settings.
+
+## Outputs and logging
+
+Each shot produces `INP-Former-<shot>-shot_artifacts.zip`. The archive contains
+both datasets and follows the zero-shot artifact/CSV contract:
+
+```text
+INP-Former-1-shot/
+|-- evaluation.log
+|-- run_manifest.json
+|-- INP-Former-1-shot_MVTec_SP.csv
+|-- INP-Former-1-shot_MVTec_PX.csv
+|-- INP-Former-1-shot_MVTec_FINE_GRAINED_SP.csv
+|-- INP-Former-1-shot_MVTec_FINE_GRAINED_PX.csv
+|-- INP-Former-1-shot_MVTec_FINE_GRAINED_PER_IMAGE.json
+|-- INP-Former-1-shot_VisA_*.csv/json
+|-- MVTec/<class>/<corruption-category>/level_<severity>/
+`-- VisA/<class>/<corruption-category>/level_<severity>/
+```
+
+Condition directories store `raw_scores.npy`, raw 28 x 28 `lowres_maps.npy`,
+and `metadata.json`. The manifest records every condition, dataset root,
+checkpoint path and file metadata, source commit, paper configuration, runtime,
+cache configuration, and generated summary paths. The text log records every
+condition and per-class image/pixel metrics. Fine-grained files split each
+categorized group back into the concrete corruption subsets assigned by the
+fixed plan.

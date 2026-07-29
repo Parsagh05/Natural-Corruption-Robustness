@@ -58,6 +58,47 @@ class BaseModelWrapper(ABC):
     # AA-CLIP overrides this because its official test code uses True.
     metric_map_align_corners: bool = False
     condition_postprocessing: bool = False
+    fail_on_inference_error: bool = False
+
+    def prepare_for_dataset(self, dataset_name: str) -> None:
+        """Activate dataset-specific state before evaluating a dataset.
+
+        Zero-shot models normally keep one checkpoint for every target
+        dataset, so the default is intentionally a no-op.  Few-shot wrappers
+        can override this hook to switch to the matching official checkpoint
+        without duplicating the evaluation runner.
+        """
+
+    def prepare_metric_mask(self, mask: np.ndarray) -> np.ndarray:
+        """Transform a binary mask into the model's metric coordinate space.
+
+        The historical zero-shot protocol evaluates at 518 x 518.  Models
+        whose official test code uses a different resize/crop pipeline can
+        override this method.
+        """
+        mask_tensor = torch.from_numpy(np.asarray(mask)).float()[None, None]
+        resized = F.interpolate(mask_tensor, size=(518, 518), mode="nearest")
+        return (resized[0, 0].cpu().numpy() > 0.5).astype(np.float32)
+
+    def prepare_metric_map(self, anomaly_map: np.ndarray) -> np.ndarray:
+        """Transform a stored raw map into the model's metric map.
+
+        This default exactly preserves the existing zero-shot bilinear
+        interpolation behavior.  A model may override it when its paper uses
+        additional smoothing or a native evaluation resolution.
+        """
+        map_tensor = torch.from_numpy(np.asarray(anomaly_map)).float()[None, None]
+        resized = F.interpolate(
+            map_tensor,
+            size=(518, 518),
+            mode="bilinear",
+            align_corners=self.metric_map_align_corners,
+        )
+        return resized[0, 0].cpu().numpy().astype(np.float32)
+
+    def inference_provenance(self) -> Dict[str, Any]:
+        """Return JSON-serializable model provenance for run manifests."""
+        return {"model": self.model_name}
 
     @abstractmethod
     def load_model(self) -> None:

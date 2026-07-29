@@ -85,6 +85,40 @@ class RobustnessRunner:
         # Enforce deterministic execution
         set_global_seed(config.seed)
 
+    def _create_model(self, model_name: str) -> BaseModelWrapper:
+        """Construct a model wrapper.
+
+        Shot-specific runners override this factory while reusing the same
+        corruption, storage, metric, and logging pipeline.
+        """
+        return get_model(
+            model_name,
+            device=self.config.device,
+            **self.config.model_kwargs.get(model_name, {}),
+        )
+
+    @staticmethod
+    def _validate_anomaly_masks(
+        dataset: AnomalyDetectionDataset,
+        dataset_name: str,
+        category: str,
+    ) -> None:
+        """Fail when anomalous samples lack masks in strict pixel protocols."""
+        invalid_samples = []
+        for sample in dataset.samples:
+            if not sample.get("is_anomaly"):
+                continue
+            mask_path = sample.get("mask_path")
+            if mask_path is None or not Path(mask_path).is_file():
+                invalid_samples.append(sample.get("sample_id") or str(sample))
+        if invalid_samples:
+            raise FileNotFoundError(
+                "Pixel-metric evaluation requires a mask for every anomalous "
+                f"sample. Missing {len(invalid_samples)} mask(s) in "
+                f"{dataset_name}/{category}; first entries: "
+                f"{invalid_samples[:5]}"
+            )
+
     def run(
         self,
         models: Optional[List[str]] = None,
@@ -125,22 +159,19 @@ class RobustnessRunner:
 
         # Load model
         try:
-            model_wrapper = get_model(
-                model_name,
-                device=self.config.device,
-                **self.config.model_kwargs.get(model_name, {}),
-            )
+            model_wrapper = self._create_model(model_name)
             model_wrapper.load_model()
         except Exception as e:
             logger.exception(f"Failed to load model {model_name}")
             raise RuntimeError(f"Failed to load model {model_name}: {e}") from e
 
         for dataset_config in datasets:
+            model_wrapper.prepare_for_dataset(dataset_config.name)
             self._run_model_on_dataset(model_wrapper, dataset_config)
 
             # Export CSVs for this model+dataset
             px_path, sp_path = self.eval_harness.export_csv(
-                model_name, dataset_config
+                model_wrapper.model_name, dataset_config
             )
             if px_path:
                 logger.info(f"Exported: {px_path}")
@@ -149,7 +180,7 @@ class RobustnessRunner:
             if self.config.categorized_corruptions:
                 fine_px_path, fine_sp_path, per_image_path = (
                     self.eval_harness.export_categorized_fine_grained(
-                        model_name, dataset_config
+                        model_wrapper.model_name, dataset_config
                     )
                 )
                 if fine_px_path:
@@ -163,11 +194,11 @@ class RobustnessRunner:
         model_wrapper.release()
 
         # Zip artifacts and cleanup disk
-        zip_path = self.storage.zip_and_cleanup_model(model_name)
+        zip_path = self.storage.zip_and_cleanup_model(model_wrapper.model_name)
         if zip_path:
             logger.info(f"Archived: {zip_path}")
 
-        self.eval_harness.discard_model_results(model_name)
+        self.eval_harness.discard_model_results(model_wrapper.model_name)
         ArtifactStorage.cleanup_memory()
         logger.info(f"Completed model: {model_name}")
 
@@ -209,6 +240,12 @@ class RobustnessRunner:
                         dataset_config.name.lower()
                     ),
                 )
+                if bool(
+                    getattr(self.config, "require_anomaly_masks", False)
+                ):
+                    self._validate_anomaly_masks(
+                        category_dataset, dataset_name, category
+                    )
                 if len(category_dataset) > 0:
                     level_datasets.append((category, category_dataset))
 
@@ -298,6 +335,8 @@ class RobustnessRunner:
                     f"indices {start_idx}-{start_idx + len(samples) - 1}: {e}. "
                     "Falling back to single-image inference."
                 )
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
                 scores, lowres_maps = [], []
                 for sample in samples:
                     try:
@@ -305,6 +344,19 @@ class RobustnessRunner:
                             sample["image"], category=category
                         )
                     except Exception as single_error:
+                        if bool(
+                            getattr(
+                                model_wrapper,
+                                "fail_on_inference_error",
+                                False,
+                            )
+                        ):
+                            raise RuntimeError(
+                                "Strict inference failed for "
+                                f"{model_name}/{dataset_name}/"
+                                f"{sample['sample_id']} under "
+                                f"{corruption_type} level {severity}."
+                            ) from single_error
                         logger.warning(
                             f"      Inference error on {sample['sample_id']}: "
                             f"{single_error}"
@@ -326,13 +378,18 @@ class RobustnessRunner:
                 mask_path = dataset.samples[start_idx + local_idx].get("mask_path")
                 image_path = dataset.samples[start_idx + local_idx].get("image_path")
                 gt_mask = (np.asarray(sample["mask"]) > 0).astype(np.float32)
-                metric_masks.append(
-                    resize_mask(
+                mask_preparer = getattr(
+                    model_wrapper, "prepare_metric_mask", None
+                )
+                if mask_preparer is None:
+                    metric_mask = resize_mask(
                         gt_mask,
                         DEFAULT_PIXEL_METRIC_SIZE,
                         DEFAULT_PIXEL_METRIC_SIZE,
                     )
-                )
+                else:
+                    metric_mask = mask_preparer(gt_mask)
+                metric_masks.append(metric_mask)
                 accumulator.add(
                     score=float(scores[local_idx]),
                     lowres_map=lowres_maps[local_idx],
@@ -375,7 +432,6 @@ class RobustnessRunner:
         resized_masks = []
         resized_maps = []
         if lowres_maps.ndim == 3 and lowres_maps.shape[0] > 0:
-            metric_size = DEFAULT_PIXEL_METRIC_SIZE
             if len(metric_masks) != len(metadata):
                 raise RuntimeError(
                     "Metric-mask count does not match inference metadata: "
@@ -388,11 +444,14 @@ class RobustnessRunner:
                 # path. Geometric corruptions transform that in-memory mask
                 # with the same deterministic parameters as the image.
                 resized_masks.append(metric_masks[i])
-                resized_maps.append(
-                    resize_anomaly_map(
+                map_preparer = getattr(
+                    model_wrapper, "prepare_metric_map", None
+                )
+                if map_preparer is None:
+                    metric_map = resize_anomaly_map(
                         lowres_maps[i],
-                        metric_size,
-                        metric_size,
+                        DEFAULT_PIXEL_METRIC_SIZE,
+                        DEFAULT_PIXEL_METRIC_SIZE,
                         align_corners=bool(
                             getattr(
                                 model_wrapper,
@@ -401,7 +460,9 @@ class RobustnessRunner:
                             )
                         ),
                     )
-                )
+                else:
+                    metric_map = map_preparer(lowres_maps[i])
+                resized_maps.append(metric_map)
 
             if condition_postprocessing:
                 postprocessor = model_wrapper.postprocess_condition_outputs
@@ -462,6 +523,17 @@ class RobustnessRunner:
             severity=severity,
             pixel_metrics=pixel_metrics,
             image_metrics=image_metrics,
+        )
+        logger.info(
+            "      %s | SP AUROC %.2f AP %.2f F1 %.2f | "
+            "PX AUROC %.2f AUPRO %.2f F1 %.2f",
+            category,
+            image_metrics["auroc_sp"],
+            image_metrics["ap_sp"],
+            image_metrics["f1_sp"],
+            pixel_metrics["auroc_px"],
+            pixel_metrics["aupro_px"],
+            pixel_metrics["f1_px"],
         )
 
         if self.config.categorized_corruptions:

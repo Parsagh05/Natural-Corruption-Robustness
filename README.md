@@ -8,15 +8,14 @@ Evaluation code and results for studying vision-language anomaly-detection model
 .
 |-- shared/       Corruption implementation and fixed dataset assignment plans
 |-- zero_shot/    Complete zero-shot evaluation pipeline, notebooks, tests, and results
-`-- few_shot/     Reserved workspace for the future few-shot pipeline
+`-- few_shot/     Few-shot harness, INP-Former implementation, notebook, and tests
 ```
 
 Both evaluation modes use `shared/imagenet_c/` and the CSV files in
 `shared/corruption_plans/`, so corruption behavior and categorized assignments
-stay identical across shot modes. The few-shot implementation has not been
-added yet. See [`zero_shot/README.md`](zero_shot/README.md) for the implemented
-protocol, model setup, Kaggle instructions, output format, and reproducibility
-notes.
+stay identical across shot modes. See [`zero_shot/README.md`](zero_shot/README.md)
+for zero-shot models and [`few_shot/README.md`](few_shot/README.md) for the
+paper-faithful INP-Former 1/2/4-shot suite on MVTec AD and VisA.
 
 ## Setup and validation
 
@@ -26,6 +25,7 @@ From the repository root:
 python -m venv .venv
 python -m pip install -r requirements.txt
 python -m unittest discover -s zero_shot/tests -v
+python -m unittest discover -s few_shot/tests -v
 python zero_shot/scripts/finalize_result_files.py --check zero_shot
 ```
 
