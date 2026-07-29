@@ -347,22 +347,28 @@ class RobustnessRunner:
         # Flush and save
         scores, lowres_maps, metadata = accumulator.flush()
 
-        self.storage.save_artifacts(
-            model_name=model_name,
-            dataset_name=dataset_name,
-            category=category,
-            noise_type=corruption_type,
-            severity=severity,
-            scores=scores,
-            lowres_maps=lowres_maps,
-            metadata=metadata,
+        condition_postprocessing = bool(
+            getattr(model_wrapper, "condition_postprocessing", False)
         )
+        if not condition_postprocessing:
+            # Preserve the original storage timing and exact raw outputs for
+            # every non-AA model.
+            self.storage.save_artifacts(
+                model_name=model_name,
+                dataset_name=dataset_name,
+                category=category,
+                noise_type=corruption_type,
+                severity=severity,
+                scores=scores,
+                lowres_maps=lowres_maps,
+                metadata=metadata,
+            )
 
-        # Compute metrics immediately
         labels = np.array([m["label"] for m in metadata])
 
-        # Image-level metrics
-        image_metrics = compute_image_metrics(labels, scores)
+        if not condition_postprocessing:
+            # Preserve the original computation order for every other model.
+            image_metrics = compute_image_metrics(labels, scores)
 
         # Pixel-level metrics
         resized_masks = []
@@ -382,8 +388,35 @@ class RobustnessRunner:
                 # with the same deterministic parameters as the image.
                 resized_masks.append(metric_masks[i])
                 resized_maps.append(
-                    resize_anomaly_map(lowres_maps[i], metric_size, metric_size)
+                    resize_anomaly_map(
+                        lowres_maps[i],
+                        metric_size,
+                        metric_size,
+                        align_corners=bool(
+                            getattr(
+                                model_wrapper,
+                                "metric_map_align_corners",
+                                False,
+                            )
+                        ),
+                    )
                 )
+
+            if condition_postprocessing:
+                postprocessor = model_wrapper.postprocess_condition_outputs
+                scores, resized_maps = postprocessor(scores, resized_maps)
+                scores = np.asarray(scores, dtype=np.float32)
+                resized_maps = list(resized_maps)
+                if scores.shape != labels.shape:
+                    raise RuntimeError(
+                        "Postprocessed score shape does not match labels: "
+                        f"{scores.shape} vs {labels.shape}."
+                    )
+                if len(resized_maps) != len(metadata):
+                    raise RuntimeError(
+                        "Postprocessed map count does not match metadata: "
+                        f"{len(resized_maps)} vs {len(metadata)}."
+                    )
 
             pixel_metrics = compute_pixel_metrics(
                 resized_masks,
@@ -391,12 +424,34 @@ class RobustnessRunner:
                 aupro_device=self.config.device,
             )
         else:
+            if condition_postprocessing:
+                raise RuntimeError(
+                    "AA-CLIP paper-faithful image scoring requires anomaly maps."
+                )
             pixel_metrics = {
                 "auroc_px": 0.0,
                 "f1_px": 0.0,
                 "aupro_px": 0.0,
                 "threshold_px": 0.0,
             }
+
+        if condition_postprocessing:
+            # AA-CLIP artifacts keep raw low-resolution maps for manageable
+            # storage, while scores are the official final fused predictions.
+            self.storage.save_artifacts(
+                model_name=model_name,
+                dataset_name=dataset_name,
+                category=category,
+                noise_type=corruption_type,
+                severity=severity,
+                scores=scores,
+                lowres_maps=lowres_maps,
+                metadata=metadata,
+            )
+
+            # AA image metrics must be delayed until official map/image fusion
+            # has been applied across the complete class/condition.
+            image_metrics = compute_image_metrics(labels, scores)
 
         self.eval_harness.record_metrics(
             model_name=model_name,

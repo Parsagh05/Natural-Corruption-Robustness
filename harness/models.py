@@ -21,6 +21,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from PIL import Image
 
+from .aaclip_scoring import postprocess_aaclip_industrial_condition
+
 
 def _as_tuple(value: Any, default: Sequence[int]) -> Tuple[int, ...]:
     if value is None:
@@ -51,6 +53,11 @@ class BaseModelWrapper(ABC):
         self.device = device
         self.model = None
         self.kwargs = kwargs
+
+    # All existing wrappers keep the harness's historical interpolation rule.
+    # AA-CLIP overrides this because its official test code uses True.
+    metric_map_align_corners: bool = False
+    condition_postprocessing: bool = False
 
     @abstractmethod
     def load_model(self) -> None:
@@ -89,6 +96,19 @@ class BaseModelWrapper(ABC):
             scores.append(score)
             lowres_maps.append(lowres_map)
         return np.asarray(scores, dtype=np.float32), np.stack(lowres_maps)
+
+    def postprocess_condition_outputs(
+        self,
+        scores: np.ndarray,
+        anomaly_maps: Sequence[np.ndarray],
+    ) -> Tuple[np.ndarray, Sequence[np.ndarray]]:
+        """Finalize scores after all samples from one class are available.
+
+        Most models require no condition-level processing.  AA-CLIP overrides
+        this hook because its official industrial inference normalizes across
+        a whole class/condition and fuses image and pixel-map predictions.
+        """
+        return scores, anomaly_maps
 
     def release(self) -> None:
         """Free GPU memory."""
@@ -441,6 +461,9 @@ class AdaCLIPWrapper(BaseModelWrapper):
 class AACLIPWrapper(BaseModelWrapper):
     """Wrapper for AA-CLIP model."""
 
+    metric_map_align_corners = True
+    condition_postprocessing = True
+
     _REAL_NAMES: Dict[str, str] = {
         "bottle": "dark bottle",
         "cable": "top view of three cables",
@@ -775,7 +798,7 @@ class AACLIPWrapper(BaseModelWrapper):
             patch_features, det_feature = self.model(image_tensor)
 
             image_logits = det_feature @ text_features
-            anomaly_scores = image_logits.softmax(dim=-1)[:, 1]
+            anomaly_scores = (image_logits[:, 1] + 1.0) / 2.0
 
             lowres_maps = []
             for patch_feature in patch_features:
@@ -795,8 +818,9 @@ class AACLIPWrapper(BaseModelWrapper):
                 patch_scores = patch_scores.permute(0, 2, 1).view(
                     batch_size, channel_count, side, side
                 )
-                patch_probs = patch_scores.softmax(dim=1)
-                lowres_map = patch_probs[:, 1]
+                lowres_map = (
+                    patch_scores[:, 1] + 1.0 - patch_scores[:, 0]
+                ) / 2.0
                 if self.apply_score_blur:
                     lowres_map = self.gaussian_blur2d(
                         lowres_map.unsqueeze(1), (7, 7), (1, 1)
@@ -812,6 +836,14 @@ class AACLIPWrapper(BaseModelWrapper):
             anomaly_scores.detach().cpu().numpy().astype(np.float32),
             lowres_map.detach().cpu().numpy().astype(np.float32),
         )
+
+    def postprocess_condition_outputs(
+        self,
+        scores: np.ndarray,
+        anomaly_maps: Sequence[np.ndarray],
+    ) -> Tuple[np.ndarray, Sequence[np.ndarray]]:
+        """Apply the official AA-CLIP industrial score normalization/fusion."""
+        return postprocess_aaclip_industrial_condition(scores, anomaly_maps)
 
     def release(self) -> None:
         self._text_feature_cache.clear()

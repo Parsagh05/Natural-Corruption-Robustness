@@ -19,6 +19,7 @@ import numpy as np
 from PIL import Image
 
 from .config import DatasetConfig, HarnessConfig
+from .aaclip_scoring import normalize_aaclip_maps
 from .metrics import (
     DEFAULT_PIXEL_METRIC_SIZE,
     compute_image_metrics,
@@ -430,8 +431,19 @@ class EvaluationHarness:
 
                     for lowres_map in lowres_maps:
                         resized_maps.append(
-                            resize_anomaly_map(lowres_map, metric_size, metric_size)
+                            resize_anomaly_map(
+                                lowres_map,
+                                metric_size,
+                                metric_size,
+                                align_corners=(model_name == "AA-CLIP"),
+                            )
                         )
+
+                    if model_name == "AA-CLIP":
+                        # New AA-CLIP artifacts store already-fused image
+                        # scores and raw low-resolution maps. Reapply only the
+                        # official per-class map normalization here.
+                        resized_maps = normalize_aaclip_maps(resized_maps)
 
                     pixel_metrics = compute_pixel_metrics(
                         resized_masks,

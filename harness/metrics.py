@@ -257,11 +257,18 @@ def resize_mask_to_lowres(mask: np.ndarray, target_h: int, target_w: int) -> np.
 
 
 def resize_anomaly_map(
-    anomaly_map: np.ndarray, target_h: int, target_w: int
+    anomaly_map: np.ndarray,
+    target_h: int,
+    target_w: int,
+    *,
+    align_corners: bool = False,
 ) -> np.ndarray:
     """Resize an anomaly map to the target dimensions with bilinear sampling."""
     map_tensor = torch.from_numpy(anomaly_map).float().unsqueeze(0).unsqueeze(0)
     resized = F.interpolate(
-        map_tensor, size=(target_h, target_w), mode="bilinear", align_corners=False
+        map_tensor,
+        size=(target_h, target_w),
+        mode="bilinear",
+        align_corners=align_corners,
     )
     return resized.squeeze().numpy().astype(np.float32)
