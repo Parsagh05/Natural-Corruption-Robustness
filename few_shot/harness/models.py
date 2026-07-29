@@ -71,6 +71,7 @@ def official_checkpoint_directory(shot: int, dataset_name: str) -> str:
 def discover_official_checkpoints(
     checkpoint_root: str,
     shots: Sequence[int] = (1, 2, 4),
+    datasets: Sequence[str] = ("mvtec", "visa"),
 ) -> Dict[int, Dict[str, str]]:
     """Locate the selected official ``model.pth`` files below one root.
 
@@ -89,13 +90,23 @@ def discover_official_checkpoints(
             "shots must contain one or more official settings from (1, 2, 4); "
             f"got {selected_shots}."
         )
+    dataset_values = (datasets,) if isinstance(datasets, str) else datasets
+    selected_datasets = tuple(
+        normalize_dataset_name(dataset) for dataset in dataset_values
+    )
+    if not selected_datasets:
+        raise ValueError("Select at least one checkpoint dataset.")
+    if len(set(selected_datasets)) != len(selected_datasets):
+        raise ValueError(
+            f"Checkpoint datasets must be unique; got {selected_datasets}."
+        )
 
     resolved: Dict[int, Dict[str, str]] = {}
     missing = []
     all_model_files = list(root.rglob("model.pth"))
     for shot in selected_shots:
         resolved[shot] = {}
-        for dataset in ("mvtec", "visa"):
+        for dataset in selected_datasets:
             directory_name = official_checkpoint_directory(shot, dataset)
             direct_path = root / directory_name / "model.pth"
             matches = [

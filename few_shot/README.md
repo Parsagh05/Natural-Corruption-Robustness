@@ -96,7 +96,11 @@ By default every dataset/shot pair evaluates `noise`, `blur`, `photometric`, and
 plans from `shared/corruption_plans/` use corruption seed 123.
 
 The Kaggle notebook exposes the evaluation protocol in one editable control
-block. `USE_CATEGORIZED_CORRUPTIONS` switches between the categorized and
+block. `DATASET_NAME` accepts `"mvtec"`, `"visa"`, or `"both"` and controls
+the mounted dataset, downloaded checkpoints, and evaluation target.
+INP-Former few-shot always pairs the selected target with its same-dataset
+official checkpoint (MVTec with MVTec; VisA with VisA); cross-dataset weights
+are specific to zero-shot protocols. `USE_CATEGORIZED_CORRUPTIONS` switches between the categorized and
 uncategorized lists; either list can be reduced to a subset.
 `INCLUDE_CLEAN_BASELINE`, `SEVERITY_LEVELS`, `SHOTS_TO_RUN`, `DEVICE`,
 `BATCH_SIZE`, and the cache settings are independent controls. Set the active
@@ -110,16 +114,17 @@ Corruptions remain identical across shots because they are regenerated from
 the same deterministic per-image seed. Enable a cache only when the available
 disk capacity has been checked.
 
-The default `SHOTS_TO_RUN = [1, 2, 4]` launches all six evaluations. The fixed
-plans contain 198,237 image-condition inferences across the complete suite, so
-one free Kaggle session may be insufficient depending on its GPU. Set
-`SHOTS_TO_RUN` to `[1]`, `[2]`, or `[4]` to run one shot (both datasets) per
-session without changing any evaluation settings.
+The default `SHOTS_TO_RUN = [1, 2, 4]` launches three evaluations when one
+dataset is selected and six when `DATASET_NAME = "both"`. The fixed plans
+contain 198,237 image-condition inferences across the complete three-shot,
+both-dataset suite, so one free Kaggle session may be insufficient depending
+on its GPU. Set `SHOTS_TO_RUN` to `[1]`, `[2]`, or `[4]` to run one shot per
+session without changing the other evaluation settings.
 
 ## Outputs and logging
 
 Each shot produces `INP-Former-<shot>-shot_artifacts.zip`. The archive contains
-both datasets and follows the zero-shot artifact/CSV contract:
+the selected dataset(s) and follows the zero-shot artifact/CSV contract:
 
 ```text
 INP-Former-1-shot/

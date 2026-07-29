@@ -1,0 +1,555 @@
+[
+  {
+    "label": 1,
+    "sample_id": "wood/color/000.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/color/000_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/color/000.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/color/001.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/color/001_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/color/001.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/color/002.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/color/002_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/color/002.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/color/003.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/color/003_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/color/003.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/color/004.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/color/004_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/color/004.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/color/005.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/color/005_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/color/005.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/color/006.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/color/006_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/color/006.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/color/007.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/color/007_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/color/007.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/combined/000.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/combined/000_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/combined/000.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/combined/001.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/combined/001_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/combined/001.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/combined/002.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/combined/002_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/combined/002.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/combined/003.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/combined/003_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/combined/003.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/combined/004.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/combined/004_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/combined/004.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/combined/005.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/combined/005_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/combined/005.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/combined/006.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/combined/006_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/combined/006.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/combined/007.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/combined/007_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/combined/007.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/combined/008.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/combined/008_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/combined/008.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/combined/009.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/combined/009_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/combined/009.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/combined/010.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/combined/010_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/combined/010.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "wood/good/000.png",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/good/000.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "wood/good/001.png",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/good/001.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "wood/good/002.png",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/good/002.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "wood/good/003.png",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/good/003.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "wood/good/004.png",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/good/004.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "wood/good/005.png",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/good/005.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "wood/good/006.png",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/good/006.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "wood/good/007.png",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/good/007.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "wood/good/008.png",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/good/008.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "wood/good/009.png",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/good/009.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "wood/good/010.png",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/good/010.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "wood/good/011.png",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/good/011.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "wood/good/012.png",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/good/012.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "wood/good/013.png",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/good/013.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "wood/good/014.png",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/good/014.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "wood/good/015.png",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/good/015.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "wood/good/016.png",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/good/016.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "wood/good/017.png",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/good/017.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "wood/good/018.png",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/good/018.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/hole/000.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/hole/000_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/hole/000.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/hole/001.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/hole/001_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/hole/001.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/hole/002.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/hole/002_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/hole/002.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/hole/003.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/hole/003_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/hole/003.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/hole/004.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/hole/004_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/hole/004.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/hole/005.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/hole/005_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/hole/005.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/hole/006.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/hole/006_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/hole/006.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/hole/007.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/hole/007_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/hole/007.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/hole/008.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/hole/008_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/hole/008.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/hole/009.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/hole/009_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/hole/009.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/liquid/000.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/liquid/000_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/liquid/000.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/liquid/001.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/liquid/001_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/liquid/001.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/liquid/002.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/liquid/002_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/liquid/002.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/liquid/003.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/liquid/003_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/liquid/003.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/liquid/004.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/liquid/004_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/liquid/004.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/liquid/005.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/liquid/005_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/liquid/005.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/liquid/006.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/liquid/006_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/liquid/006.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/liquid/007.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/liquid/007_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/liquid/007.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/liquid/008.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/liquid/008_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/liquid/008.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/liquid/009.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/liquid/009_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/liquid/009.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/scratch/000.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/scratch/000_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/scratch/000.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/scratch/001.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/scratch/001_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/scratch/001.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/scratch/002.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/scratch/002_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/scratch/002.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/scratch/003.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/scratch/003_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/scratch/003.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/scratch/004.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/scratch/004_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/scratch/004.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/scratch/005.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/scratch/005_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/scratch/005.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/scratch/006.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/scratch/006_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/scratch/006.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/scratch/007.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/scratch/007_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/scratch/007.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/scratch/008.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/scratch/008_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/scratch/008.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/scratch/009.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/scratch/009_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/scratch/009.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/scratch/010.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/scratch/010_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/scratch/010.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/scratch/011.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/scratch/011_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/scratch/011.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/scratch/012.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/scratch/012_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/scratch/012.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/scratch/013.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/scratch/013_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/scratch/013.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/scratch/014.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/scratch/014_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/scratch/014.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/scratch/015.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/scratch/015_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/scratch/015.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/scratch/016.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/scratch/016_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/scratch/016.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/scratch/017.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/scratch/017_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/scratch/017.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/scratch/018.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/scratch/018_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/scratch/018.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/scratch/019.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/scratch/019_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/scratch/019.png",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "wood/scratch/020.png",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/ground_truth/scratch/020_mask.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/mvtec-ad/mvtec_anomaly_detection/wood/test/scratch/020.png",
+    "selected_corruption": null
+  }
+]

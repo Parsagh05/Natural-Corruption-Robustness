@@ -1,0 +1,1402 @@
+[
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0790.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0790.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0107.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0107.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0484.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0484.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0690.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0690.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0303.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0303.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0237.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0237.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0394.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0394.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0214.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0214.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0985.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0985.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0657.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0657.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0377.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0377.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0659.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0659.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0514.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0514.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0617.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0617.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0725.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0725.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0172.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0172.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0996.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0996.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0483.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0483.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0654.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0654.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0400.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0400.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0469.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0469.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0525.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0525.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0170.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0170.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0631.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0631.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0685.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0685.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0320.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0320.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0869.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0869.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0423.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0423.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0417.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0417.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0751.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0751.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0764.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0764.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0967.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0967.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0730.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0730.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0306.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0306.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0011.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0011.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0215.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0215.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0159.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0159.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0629.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0629.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0694.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0694.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0518.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0518.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0026.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0026.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0844.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0844.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0953.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0953.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0900.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0900.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0402.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0402.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0621.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0621.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0294.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0294.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0016.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0016.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0046.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0046.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0705.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0705.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0208.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0208.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0674.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0674.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0427.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0427.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0552.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0552.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0804.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0804.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0333.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0333.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0027.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0027.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0100.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0100.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0800.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0800.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0923.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0923.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0755.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0755.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0013.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0013.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0297.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0297.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0768.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0768.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0457.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0457.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0520.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0520.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0952.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0952.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0871.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0871.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0811.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0811.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0174.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0174.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0648.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0648.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0261.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0261.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0784.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0784.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0935.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0935.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0286.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0286.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0779.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0779.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0363.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0363.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0619.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0619.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0024.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0024.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0735.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0735.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0688.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0688.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0796.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0796.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0178.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0178.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0797.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0797.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0920.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0920.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0479.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0479.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0684.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0684.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0739.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0739.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0569.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0569.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0196.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0196.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0892.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0892.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0964.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0964.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0187.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0187.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0488.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0488.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0994.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0994.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0545.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0545.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0615.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0615.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0974.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0974.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0490.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0490.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 0,
+    "sample_id": "macaroni2/good/macaroni2/Data/Images/Normal/0168.JPG",
+    "mask_path": null,
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Normal/0168.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/000.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/000.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/000.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/001.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/001.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/001.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/002.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/002.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/002.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/003.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/003.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/003.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/004.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/004.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/004.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/005.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/005.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/005.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/006.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/006.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/006.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/007.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/007.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/007.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/008.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/008.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/008.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/009.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/009.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/009.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/010.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/010.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/010.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/011.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/011.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/011.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/012.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/012.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/012.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/013.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/013.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/013.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/014.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/014.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/014.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/015.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/015.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/015.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/016.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/016.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/016.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/017.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/017.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/017.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/018.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/018.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/018.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/019.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/019.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/019.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/020.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/020.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/020.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/021.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/021.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/021.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/022.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/022.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/022.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/023.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/023.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/023.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/024.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/024.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/024.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/025.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/025.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/025.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/026.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/026.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/026.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/027.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/027.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/027.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/028.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/028.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/028.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/029.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/029.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/029.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/030.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/030.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/030.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/031.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/031.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/031.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/032.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/032.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/032.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/033.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/033.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/033.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/034.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/034.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/034.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/035.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/035.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/035.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/036.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/036.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/036.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/037.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/037.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/037.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/038.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/038.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/038.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/039.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/039.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/039.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/040.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/040.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/040.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/041.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/041.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/041.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/042.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/042.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/042.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/043.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/043.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/043.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/044.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/044.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/044.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/045.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/045.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/045.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/046.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/046.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/046.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/047.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/047.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/047.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/048.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/048.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/048.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/049.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/049.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/049.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/050.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/050.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/050.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/051.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/051.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/051.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/052.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/052.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/052.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/053.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/053.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/053.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/054.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/054.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/054.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/055.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/055.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/055.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/056.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/056.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/056.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/057.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/057.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/057.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/058.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/058.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/058.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/059.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/059.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/059.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/060.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/060.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/060.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/061.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/061.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/061.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/062.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/062.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/062.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/063.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/063.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/063.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/064.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/064.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/064.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/065.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/065.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/065.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/066.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/066.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/066.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/067.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/067.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/067.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/068.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/068.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/068.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/069.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/069.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/069.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/070.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/070.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/070.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/071.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/071.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/071.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/072.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/072.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/072.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/073.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/073.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/073.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/074.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/074.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/074.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/075.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/075.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/075.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/076.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/076.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/076.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/077.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/077.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/077.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/078.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/078.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/078.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/079.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/079.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/079.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/080.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/080.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/080.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/081.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/081.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/081.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/082.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/082.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/082.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/083.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/083.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/083.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/084.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/084.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/084.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/085.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/085.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/085.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/086.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/086.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/086.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/087.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/087.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/087.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/088.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/088.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/088.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/089.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/089.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/089.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/090.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/090.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/090.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/091.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/091.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/091.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/092.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/092.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/092.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/093.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/093.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/093.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/094.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/094.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/094.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/095.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/095.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/095.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/096.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/096.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/096.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/097.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/097.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/097.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/098.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/098.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/098.JPG",
+    "selected_corruption": null
+  },
+  {
+    "label": 1,
+    "sample_id": "macaroni2/bad/macaroni2/Data/Images/Anomaly/099.JPG",
+    "mask_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Masks/Anomaly/099.png",
+    "image_path": "/kaggle/input/datasets/alirezasalehy/visa-ad/VisA_20220922/macaroni2/Data/Images/Anomaly/099.JPG",
+    "selected_corruption": null
+  }
+]

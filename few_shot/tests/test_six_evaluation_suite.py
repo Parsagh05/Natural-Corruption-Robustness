@@ -193,6 +193,43 @@ class SixEvaluationSuiteTest(unittest.TestCase):
         self.assertIsNone(kwargs["categorized_corruption_plans"])
         self.assertFalse(kwargs["include_clean"])
 
+    def test_visa_selection_uses_only_the_visa_few_shot_checkpoint(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            visa_root = root / "visa"
+            source_root = root / "INP-Former"
+            visa_root.mkdir()
+            (source_root / "models").mkdir(parents=True)
+            (source_root / "dinov2" / "models").mkdir(parents=True)
+            (source_root / "models" / "uad.py").touch()
+            (source_root / "dinov2" / "models" / "vision_transformer.py").touch()
+            visa_checkpoint = root / "weights" / "1" / "visa" / "model.pth"
+            visa_checkpoint.parent.mkdir(parents=True)
+            visa_checkpoint.touch()
+
+            with patch("few_shot.harness.runner.run_evaluation") as run_mock:
+                run_official_evaluations(
+                    mvtec_root=None,
+                    visa_root=str(visa_root),
+                    output_root=str(root / "outputs"),
+                    inpformer_root=str(source_root),
+                    checkpoint_paths={1: {"visa": str(visa_checkpoint)}},
+                    shots=[1],
+                    datasets=["visa"],
+                    device="cpu",
+                )
+
+        run_mock.assert_called_once()
+        kwargs = run_mock.call_args.kwargs
+        self.assertEqual(kwargs["dataset"], "visa")
+        self.assertIsNone(kwargs["mvtec_root"])
+        self.assertEqual(kwargs["visa_root"], str(visa_root))
+        self.assertEqual(
+            kwargs["model_kwargs"]["INP-Former"]["checkpoint_paths"],
+            {"visa": str(visa_checkpoint)},
+        )
+        self.assertEqual(set(kwargs["categorized_corruption_plans"]), {"visa"})
+
     def test_kaggle_notebook_exposes_official_six_run_launcher(self):
         notebook_path = (
             Path(__file__).resolve().parents[1] / "kaggle_inpformer.ipynb"
@@ -214,6 +251,8 @@ class SixEvaluationSuiteTest(unittest.TestCase):
         self.assertIn("Dataset preflight passed", source)
         self.assertIn("STRICT_SOURCE_COMMIT = True", source)
         self.assertIn("INCLUDE_CLEAN_BASELINE = True", source)
+        self.assertIn('DATASET_NAME = "visa"', source)
+        self.assertIn("DATASETS_TO_RUN = (", source)
         self.assertIn("USE_CATEGORIZED_CORRUPTIONS = True", source)
         self.assertIn("UNCATEGORIZED_CORRUPTION_TYPES = [", source)
         self.assertIn("CATEGORIZED_CORRUPTION_TYPES = [", source)
@@ -222,6 +261,7 @@ class SixEvaluationSuiteTest(unittest.TestCase):
         self.assertIn("SHOTS_TO_RUN = [1, 2, 4]", source)
         self.assertIn("CORRUPTION_CACHE_ROOT = None", source)
         self.assertIn("shots=SHOTS_TO_RUN", source)
+        self.assertIn("datasets=DATASETS_TO_RUN", source)
         self.assertIn("corruption_types=CORRUPTION_TYPES", source)
         self.assertIn("severity_levels=SEVERITY_LEVELS", source)
         self.assertIn(

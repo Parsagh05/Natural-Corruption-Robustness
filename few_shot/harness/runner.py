@@ -296,12 +296,13 @@ def run_evaluation(
 
 
 def run_official_evaluations(
-    mvtec_root: str,
-    visa_root: str,
+    mvtec_root: Optional[str],
+    visa_root: Optional[str],
     output_root: str,
     inpformer_root: str,
     checkpoint_paths: Mapping[int, Mapping[str, str]],
     shots: Sequence[int] = OFFICIAL_SHOTS,
+    datasets: Sequence[str] = ("mvtec", "visa"),
     device: str = "cuda",
     batch_size: int = 4,
     corruption_types: Optional[Sequence[str]] = None,
@@ -313,23 +314,39 @@ def run_official_evaluations(
     include_clean: bool = True,
     strict_source_commit: bool = False,
 ) -> None:
-    """Execute each requested shot for both MVTec AD and VisA.
+    """Execute each requested shot for the selected evaluation datasets.
 
     Corruption mode, enabled corruption names, severities, and the clean
     baseline are explicit controls. Categorized mode uses the repository's
     fixed per-image assignment plans.
     """
+    dataset_values = (datasets,) if isinstance(datasets, str) else datasets
+    selected_datasets = tuple(
+        normalize_dataset_name(dataset) for dataset in dataset_values
+    )
+    if not selected_datasets:
+        raise ValueError("Select at least one evaluation dataset.")
+    if len(set(selected_datasets)) != len(selected_datasets):
+        raise ValueError(
+            f"Evaluation datasets must be unique; got {selected_datasets}."
+        )
+    root_values = {"mvtec": mvtec_root, "visa": visa_root}
+    dataset_labels = {"mvtec": "MVTec AD", "visa": "VisA"}
     dataset_roots = {
-        "MVTec AD": Path(mvtec_root).expanduser(),
-        "VisA": Path(visa_root).expanduser(),
+        dataset: (
+            Path(root_values[dataset]).expanduser()
+            if root_values[dataset] is not None else None
+        )
+        for dataset in selected_datasets
     }
     missing_roots = [
-        f"{name}: {path}" for name, path in dataset_roots.items()
-        if not path.is_dir()
+        f"{dataset_labels[name]}: {path}"
+        for name, path in dataset_roots.items()
+        if path is None or not path.is_dir()
     ]
     if missing_roots:
         raise FileNotFoundError(
-            "The official evaluation suite requires both dataset roots. Missing:\n  - "
+            "The selected official evaluation datasets are missing:\n  - "
             + "\n  - ".join(missing_roots)
         )
     source_root = Path(inpformer_root).expanduser()
@@ -407,15 +424,19 @@ def run_official_evaluations(
             raw_mapping = checkpoint_paths.get(str(shot))  # type: ignore[arg-type]
         if raw_mapping is None:
             raise KeyError(f"Missing official {shot}-shot checkpoint mapping.")
-        normalized_paths[shot] = {
+        available_paths = {
             normalize_dataset_name(name): str(path)
             for name, path in raw_mapping.items()
         }
-        missing_datasets = {"mvtec", "visa"} - set(normalized_paths[shot])
+        missing_datasets = set(selected_datasets) - set(available_paths)
         if missing_datasets:
             raise KeyError(
                 f"{shot}-shot checkpoint mapping is missing {missing_datasets}."
             )
+        normalized_paths[shot] = {
+            dataset: available_paths[dataset]
+            for dataset in selected_datasets
+        }
 
     missing_checkpoints = [
         f"{shot}-shot {dataset}: {path}"
@@ -431,22 +452,22 @@ def run_official_evaluations(
 
     plans = (
         {
-            "mvtec": str(corruption_plan_path("mvtec")),
-            "visa": str(corruption_plan_path("visa")),
+            dataset: str(corruption_plan_path(dataset))
+            for dataset in selected_datasets
         }
         if categorized_corruptions else None
     )
     for shot_index, shot in enumerate(selected_shots, start=1):
         pipeline_logger.info(
-            "Launching official INP-Former suite %s/%s: %s-shot x "
-            "{MVTec AD, VisA}",
+            "Launching official INP-Former suite %s/%s: %s-shot x %s",
             shot_index,
             len(selected_shots),
             shot,
+            [dataset_labels[name] for name in selected_datasets],
         )
         run_evaluation(
-            mvtec_root=mvtec_root,
-            visa_root=visa_root,
+            mvtec_root=(mvtec_root if "mvtec" in selected_datasets else None),
+            visa_root=(visa_root if "visa" in selected_datasets else None),
             output_root=output_root,
             models=["INP-Former"],
             model_kwargs={
@@ -458,7 +479,10 @@ def run_official_evaluations(
             },
             shot=shot,
             device=device,
-            dataset="both",
+            dataset=(
+                "both" if len(selected_datasets) == 2
+                else selected_datasets[0]
+            ),
             corruption_types=selected_corruptions,
             severity_levels=selected_severities,
             batch_size=batch_size,

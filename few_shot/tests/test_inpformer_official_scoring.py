@@ -153,6 +153,25 @@ class INPFormerOfficialScoringTest(unittest.TestCase):
         self.assertEqual(set(discovered), {2})
         self.assertEqual(set(discovered[2]), {"mvtec", "visa"})
 
+    def test_discovery_requires_only_the_selected_target_dataset_checkpoint(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            checkpoint = (
+                root
+                / official_checkpoint_directory(4, "visa")
+                / "model.pth"
+            )
+            checkpoint.parent.mkdir(parents=True)
+            checkpoint.touch()
+
+            discovered = discover_official_checkpoints(
+                str(root), shots=[4], datasets=["visa"]
+            )
+
+        self.assertEqual(set(discovered), {4})
+        self.assertEqual(set(discovered[4]), {"visa"})
+        self.assertIn("dataset=VisA", discovered[4]["visa"])
+
 
 if __name__ == "__main__":
     unittest.main()
