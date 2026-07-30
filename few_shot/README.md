@@ -10,6 +10,32 @@ preprocessing, checkpoint, map postprocessing, and image-scoring rules.
 - INP-Former: official 1-shot, 2-shot, and 4-shot checkpoints for MVTec AD and
   VisA (six dataset/checkpoint evaluations).
 
+## Retraining PromptAD checkpoints
+
+[`kaggle_train_promptad.ipynb`](kaggle_train_promptad.ipynb) retrains the
+official CVPR 2024 PromptAD source at pinned commit
+`0f86ce0dc1ed59007d51348d8d566aed31360cf9`. It reproduces the official
+class-specific 1/2/4-shot training setup on MVTec AD and VisA, including the
+checked-in normal-reference index files, LAION-400M ViT-B/16+ backbone,
+240-pixel preprocessing, fp16 prompt tuning, seed 111, SGD and cosine schedule,
+100 epochs, and the separate image-level (`CLS`) and pixel-level (`SEG`)
+training objectives.
+
+PromptAD does not use one dataset-wide checkpoint. The complete two-dataset
+suite contains 162 files: 27 classes x 3 shot settings x 2 tasks. The notebook
+can shard the suite across Kaggle sessions, validate resumed checkpoints, and
+exports an indexed ZIP with SHA-256 hashes, selected normal filenames, exact
+commands, runtime versions, logs, CSVs, and the official result directory
+layout. It displays an overall checkpoint progress bar and an instrumented
+100-epoch `tqdm` bar for every class/task job. The upstream training scripts
+choose the best epoch using test AUROC;
+the notebook retains that behavior for paper/code fidelity and calls it out in
+the artifact manifest.
+
+The notebook produces the weights needed by a PromptAD few-shot wrapper, but
+PromptAD inference is not yet registered in this harness; the implemented
+evaluation model remains INP-Former.
+
 `harness/models.py` contains a registry and `register_model()` extension point
 for subsequent few-shot models. A new wrapper only needs to implement model
 loading and raw inference; it can optionally override dataset checkpoint
