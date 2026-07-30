@@ -69,6 +69,26 @@ class PromptADTrainingNotebookTest(unittest.TestCase):
             with self.subTest(fragment=fragment):
                 self.assertIn(fragment, self.source)
 
+    def test_notebook_routes_cls_and_seg_to_isolated_dual_gpu_jobs(self):
+        required_fragments = (
+            'GPU_IDS = [0, 1]',
+            '"cls": GPU_IDS[0]',
+            '"seg": GPU_IDS[1] if len(GPU_IDS) > 1 else GPU_IDS[0]',
+            '"--gpu-id", str(gpu_id)',
+            'ThreadPoolExecutor',
+            'executor.submit(',
+            'tempfile.mkdtemp(',
+            'JOB_WORK_ROOT',
+            'MERGE_LOCK = threading.Lock()',
+            'with MERGE_LOCK:',
+            'merge_official_csv(job, job_result_root)',
+            'os.replace(temporary_path, destination_path)',
+            'prewarm_code',
+        )
+        for fragment in required_fragments:
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment, self.source)
+
 
 if __name__ == "__main__":
     unittest.main()

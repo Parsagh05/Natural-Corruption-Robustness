@@ -32,6 +32,16 @@ choose the best epoch using test AUROC;
 the notebook retains that behavior for paper/code fidelity and calls it out in
 the artifact manifest.
 
+On Kaggle's **T4 x2** accelerator, the notebook uses task-level parallelism:
+`CLS` for a class runs on GPU 0 while that same class's `SEG` job runs on GPU
+1. Set `GPU_IDS = [0, 1]` and keep `TASKS_TO_TRAIN = ["cls", "seg"]`; use
+`MAX_JOBS_THIS_SESSION = 2` for one complete class pair per session or `None`
+for every selected pair. Each subprocess writes to an isolated result tree,
+then the parent validates and promotes its checkpoint and merges only its CSV
+metric under a lock. This avoids the official scripts' shared-CSV race. A
+single-GPU session remains supported with `GPU_IDS = [0]`, where the two tasks
+run sequentially.
+
 The notebook produces the weights needed by a PromptAD few-shot wrapper, but
 PromptAD inference is not yet registered in this harness; the implemented
 evaluation model remains INP-Former.
