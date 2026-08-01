@@ -25,7 +25,11 @@ from .config import (
     OFFICIAL_SHOTS,
     SEVERITY_LEVELS,
 )
-from .models import get_model, normalize_dataset_name
+from .models import (
+    PROMPTAD_DATASET_CATEGORIES,
+    get_model,
+    normalize_dataset_name,
+)
 
 
 def _utc_timestamp() -> str:
@@ -495,8 +499,194 @@ def run_official_evaluations(
         )
 
 
+def run_promptad_evaluations(
+    mvtec_root: Optional[str],
+    visa_root: Optional[str],
+    output_root: str,
+    promptad_root: str,
+    checkpoint_paths: Mapping[
+        int, Mapping[str, Mapping[str, Mapping[str, str]]]
+    ],
+    shots: Sequence[int] = OFFICIAL_SHOTS,
+    datasets: Sequence[str] = ("mvtec", "visa"),
+    device: str = "cuda",
+    batch_size: int = 32,
+    corruption_types: Optional[Sequence[str]] = None,
+    severity_levels: Optional[Sequence[int]] = None,
+    categorized_corruptions: bool = True,
+    corruption_cache_root: Optional[str] = None,
+    corruption_cache_format: str = "png",
+    corruption_seed: int = 123,
+    include_clean: bool = True,
+    strict_source_commit: bool = False,
+) -> None:
+    """Run class-paired PromptAD CLS/SEG buffers for selected shot suites."""
+    dataset_values = (datasets,) if isinstance(datasets, str) else datasets
+    selected_datasets = tuple(
+        normalize_dataset_name(dataset) for dataset in dataset_values
+    )
+    if not selected_datasets or len(set(selected_datasets)) != len(selected_datasets):
+        raise ValueError(
+            f"PromptAD evaluation datasets must be non-empty and unique: {selected_datasets}."
+        )
+
+    root_values = {"mvtec": mvtec_root, "visa": visa_root}
+    dataset_labels = {"mvtec": "MVTec AD", "visa": "VisA"}
+    missing_roots = [
+        f"{dataset_labels[name]}: {root_values[name]}"
+        for name in selected_datasets
+        if root_values[name] is None
+        or not Path(str(root_values[name])).expanduser().is_dir()
+    ]
+    if missing_roots:
+        raise FileNotFoundError(
+            "The selected PromptAD evaluation datasets are missing:\n  - "
+            + "\n  - ".join(missing_roots)
+        )
+
+    source_root = Path(promptad_root).expanduser()
+    if not (
+        (source_root / "PromptAD" / "model.py").is_file()
+        and (source_root / "PromptAD" / "CLIPAD" / "factory.py").is_file()
+    ):
+        raise FileNotFoundError(
+            f"Official PromptAD source tree is incomplete: {source_root}"
+        )
+
+    selected_shots = tuple(int(shot) for shot in shots)
+    if not selected_shots or len(set(selected_shots)) != len(selected_shots):
+        raise ValueError(
+            f"PromptAD shot settings must be non-empty and unique: {selected_shots}."
+        )
+    invalid_shots = sorted(set(selected_shots) - set(OFFICIAL_SHOTS))
+    if invalid_shots:
+        raise ValueError(
+            f"Only PromptAD shot settings {OFFICIAL_SHOTS} are supported; "
+            f"got {invalid_shots}."
+        )
+
+    allowed_corruptions = (
+        CATEGORIZED_CORRUPTION_TYPES if categorized_corruptions else CORRUPTION_TYPES
+    )
+    selected_corruptions = list(
+        corruption_types if corruption_types is not None else allowed_corruptions
+    )
+    if len(set(selected_corruptions)) != len(selected_corruptions):
+        raise ValueError(f"Corruption types must be unique: {selected_corruptions}.")
+    invalid_corruptions = sorted(set(selected_corruptions) - set(allowed_corruptions))
+    if invalid_corruptions:
+        raise ValueError(
+            f"Invalid PromptAD corruption types {invalid_corruptions}; "
+            f"choose from {allowed_corruptions}."
+        )
+
+    selected_severities = [
+        int(level)
+        for level in (
+            severity_levels if severity_levels is not None else SEVERITY_LEVELS
+        )
+    ]
+    if len(set(selected_severities)) != len(selected_severities):
+        raise ValueError(f"Severity levels must be unique: {selected_severities}.")
+    invalid_severities = sorted(set(selected_severities) - set(SEVERITY_LEVELS))
+    if invalid_severities:
+        raise ValueError(
+            f"This benchmark supports severity levels {SEVERITY_LEVELS}; "
+            f"got {invalid_severities}."
+        )
+    if selected_corruptions and not selected_severities:
+        raise ValueError("Select at least one severity when corruptions are enabled.")
+    if not include_clean and not selected_corruptions:
+        raise ValueError("No PromptAD evaluation conditions were selected.")
+
+    normalized_paths: Dict[
+        int, Dict[str, Dict[str, Dict[str, str]]]
+    ] = {}
+    for shot in selected_shots:
+        raw_shot_mapping = checkpoint_paths.get(shot)
+        if raw_shot_mapping is None:
+            raw_shot_mapping = checkpoint_paths.get(str(shot))  # type: ignore[arg-type]
+        if raw_shot_mapping is None:
+            raise KeyError(f"Missing PromptAD {shot}-shot checkpoint mapping.")
+        available_datasets = {
+            normalize_dataset_name(name): categories
+            for name, categories in raw_shot_mapping.items()
+        }
+        normalized_paths[shot] = {}
+        for dataset in selected_datasets:
+            if dataset not in available_datasets:
+                raise KeyError(
+                    f"PromptAD {shot}-shot mapping is missing dataset {dataset}."
+                )
+            category_mapping: Dict[str, Dict[str, str]] = {}
+            for category in PROMPTAD_DATASET_CATEGORIES[dataset]:
+                raw_tasks = available_datasets[dataset].get(category)
+                if raw_tasks is None:
+                    raise KeyError(
+                        f"PromptAD {dataset}/{shot}-shot is missing {category}."
+                    )
+                tasks = {str(task).lower(): str(path) for task, path in raw_tasks.items()}
+                if set(tasks) != {"cls", "seg"}:
+                    raise KeyError(
+                        f"PromptAD {dataset}/{shot}-shot/{category} needs exactly "
+                        f"CLS and SEG checkpoints; got {sorted(tasks)}."
+                    )
+                missing_files = [path for path in tasks.values() if not Path(path).is_file()]
+                if missing_files:
+                    raise FileNotFoundError(
+                        "PromptAD checkpoint preflight failed. Missing:\n  - "
+                        + "\n  - ".join(missing_files)
+                    )
+                category_mapping[category] = tasks
+            normalized_paths[shot][dataset] = category_mapping
+
+    plans = (
+        {
+            dataset: str(corruption_plan_path(dataset))
+            for dataset in selected_datasets
+        }
+        if categorized_corruptions else None
+    )
+    for shot_index, shot in enumerate(selected_shots, start=1):
+        pipeline_logger.info(
+            "Launching PromptAD suite %s/%s: %s-shot x %s",
+            shot_index,
+            len(selected_shots),
+            shot,
+            [dataset_labels[name] for name in selected_datasets],
+        )
+        run_evaluation(
+            mvtec_root=(mvtec_root if "mvtec" in selected_datasets else None),
+            visa_root=(visa_root if "visa" in selected_datasets else None),
+            output_root=output_root,
+            models=["PromptAD"],
+            model_kwargs={
+                "PromptAD": {
+                    "promptad_root": promptad_root,
+                    "checkpoint_paths": normalized_paths[shot],
+                    "strict_source_commit": strict_source_commit,
+                }
+            },
+            shot=shot,
+            device=device,
+            dataset=(
+                "both" if len(selected_datasets) == 2 else selected_datasets[0]
+            ),
+            corruption_types=selected_corruptions,
+            severity_levels=selected_severities,
+            batch_size=batch_size,
+            corruption_cache_root=corruption_cache_root,
+            corruption_cache_format=corruption_cache_format,
+            categorized_corruptions=categorized_corruptions,
+            categorized_corruption_plans=plans,
+            corruption_seed=corruption_seed,
+            include_clean=include_clean,
+        )
+
+
 __all__ = [
     "RobustnessRunner",
     "run_evaluation",
     "run_official_evaluations",
+    "run_promptad_evaluations",
 ]

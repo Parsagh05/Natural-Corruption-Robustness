@@ -17,7 +17,7 @@ from zero_shot.harness.config import (  # re-export the shared protocol types
 )
 
 
-REGISTERED_MODELS: List[str] = ["INP-Former"]
+REGISTERED_MODELS: List[str] = ["INP-Former", "PromptAD"]
 COMPLETED_MODELS: List[str] = ["INP-Former"]
 OFFICIAL_SHOTS = (1, 2, 4)
 

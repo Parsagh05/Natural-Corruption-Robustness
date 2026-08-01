@@ -5,10 +5,12 @@ corruption implementation and fixed categorized assignment plans used by the
 zero-shot pipeline, while allowing every few-shot wrapper to keep its official
 preprocessing, checkpoint, map postprocessing, and image-scoring rules.
 
-## Implemented model
+## Implemented models
 
 - INP-Former: official 1-shot, 2-shot, and 4-shot checkpoints for MVTec AD and
   VisA (six dataset/checkpoint evaluations).
+- PromptAD: retrained class-specific CLS/SEG checkpoint pairs for 1-shot,
+  2-shot, and 4-shot MVTec AD and VisA evaluation.
 
 ## Retraining PromptAD checkpoints
 
@@ -42,14 +44,47 @@ metric under a lock. This avoids the official scripts' shared-CSV race. A
 single-GPU session remains supported with `GPU_IDS = [0]`, where the two tasks
 run sequentially.
 
-The notebook produces the weights needed by a PromptAD few-shot wrapper, but
-PromptAD inference is not yet registered in this harness; the implemented
-evaluation model remains INP-Former.
+The resulting checkpoint packages are directly consumable by the registered
+PromptAD few-shot wrapper.
 
 `harness/models.py` contains a registry and `register_model()` extension point
 for subsequent few-shot models. A new wrapper only needs to implement model
 loading and raw inference; it can optionally override dataset checkpoint
 selection and native metric map/mask preparation.
+
+## Paper-faithful PromptAD inference
+
+[`kaggle_promptad.ipynb`](kaggle_promptad.ipynb) evaluates the published
+[`parsagholami/promptad-few-shot-checkpoints-mvtec-ad-and-visa`](https://www.kaggle.com/datasets/parsagholami/promptad-few-shot-checkpoints-mvtec-ad-and-visa)
+checkpoint dataset with the same clean/corruption protocol and artifact schema
+as INP-Former. It pins the official PromptAD source commit, verifies the
+attached checkpoint indexes and optional SHA-256 hashes, downloads the frozen
+LAION-400M OpenCLIP backbone, and runs the selected 1/2/4-shot suites.
+
+PromptAD requires a class-matched pair for every evaluation: the CLS buffer
+provides the released harmonic fusion of its textual score and maximum visual
+map score, while the SEG buffer provides the harmonic text/visual anomaly map.
+The wrapper keeps one frozen backbone in GPU memory and swaps the three small
+inference buffers between the
+two passes. It preserves the official cv2 1024-square pre-resize followed by
+240-pixel model preprocessing, 400-pixel metric space, segmentation Gaussian
+smoothing with sigma 4, and the released
+test scripts' cv2 BGR channel path. The official implementation is fp16-only,
+so CUDA is required. Artifacts store the native 15 x 15 fused SEG maps; the
+official 400 x 400 interpolation and smoothing are applied for metrics instead
+of inflating every raw-map artifact.
+
+From the repository root, the equivalent CLI is:
+
+```bash
+python -m few_shot.scripts.run_promptad \
+  --mvtec-root /path/to/mvtec_anomaly_detection \
+  --visa-root /path/to/VisA_20220922 \
+  --promptad-root ../PromptAD \
+  --checkpoint-root /path/to/promptad-kaggle-dataset \
+  --output-root outputs \
+  --verify-checkpoint-hashes
+```
 
 ## Paper-faithful INP-Former inference
 

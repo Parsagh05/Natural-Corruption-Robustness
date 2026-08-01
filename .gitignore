@@ -33,6 +33,7 @@ Desktop.ini
 outputs/
 corruption_cache/
 checkpoints/
+/few_shot/checkpoints/
 *.pth
 *.pt
 *.ckpt
