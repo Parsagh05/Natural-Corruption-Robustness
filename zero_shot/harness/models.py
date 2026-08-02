@@ -913,6 +913,480 @@ class BayesPFLWrapper(BaseModelWrapper):
         return 0.0, lowres_map
 
 
+class FiLoWrapper(BaseModelWrapper):
+    """Paper-faithful wrapper for the official FiLo implementation."""
+
+    metric_map_align_corners = True
+    fail_on_inference_error = True
+
+    def __init__(
+        self,
+        checkpoint_path: str = "",
+        grounding_checkpoint_path: str = "",
+        filo_root: str = "",
+        groundingdino_config_path: str = "",
+        dataset_name: str = "mvtec",
+        clip_model: str = "ViT-L-14-336",
+        clip_pretrained: str = "openai",
+        image_size: int = 518,
+        features_list: Optional[Sequence[int]] = None,
+        n_ctx: int = 12,
+        box_threshold: float = 0.25,
+        text_threshold: float = 0.25,
+        area_threshold: float = 0.7,
+        outside_box_weight: float = 0.7,
+        **kwargs,
+    ):
+        super().__init__("FiLo", **kwargs)
+        self.checkpoint_path = checkpoint_path
+        self.grounding_checkpoint_path = grounding_checkpoint_path
+        self.filo_root = filo_root
+        self.groundingdino_config_path = groundingdino_config_path
+        self.dataset_name = dataset_name.lower().strip()
+        self.clip_model = clip_model
+        self.clip_pretrained = clip_pretrained
+        self.image_size = int(image_size)
+        self.features_list = list(_as_tuple(features_list, (6, 12, 18, 24)))
+        self.n_ctx = int(n_ctx)
+        self.box_threshold = float(box_threshold)
+        self.text_threshold = float(text_threshold)
+        self.area_threshold = float(area_threshold)
+        self.outside_box_weight = float(outside_box_weight)
+
+        self.preprocess = None
+        self.grounding_model = None
+        self._dino_transform = None
+        self._gaussian_blur = None
+        self._filo_module = None
+        self._get_phrases_from_posmap = None
+        self._weight_dataset = ""
+        self._grounding_attention_backend = ""
+        self._resolved_checkpoint = None
+        self._resolved_grounding_checkpoint = None
+
+    def load_model(self) -> None:
+        if self.dataset_name not in {"mvtec", "visa"}:
+            raise ValueError(
+                "FiLo dataset_name must be 'mvtec' or 'visa', got "
+                f"{self.dataset_name!r}."
+            )
+        if self.image_size != 518:
+            raise ValueError(
+                "The released FiLo localization grid and position prompts require "
+                "image_size=518."
+            )
+
+        root = self._find_filo_root()
+        self._prepare_imports(root)
+        try:
+            filo_module = importlib.import_module("models.FiLo")
+            dino_transforms = importlib.import_module(
+                "groundingdino.datasets.transforms"
+            )
+            dino_models = importlib.import_module("groundingdino.models")
+            dino_msda = importlib.import_module(
+                "groundingdino.models.GroundingDINO.ms_deform_attn"
+            )
+            slconfig_module = importlib.import_module("groundingdino.util.slconfig")
+            dino_utils = importlib.import_module("groundingdino.util.utils")
+            from torchvision.transforms import GaussianBlur
+        except ImportError as exc:
+            raise ImportError(
+                f"Failed to import FiLo from {root}. Install the official "
+                "requirements and GroundingDINO package before loading the model. "
+                f"Original error: {exc!r}"
+            ) from exc
+
+        try:
+            importlib.import_module("groundingdino._C")
+            self._grounding_attention_backend = "compiled_cuda_extension"
+        except (ImportError, OSError):
+            # The vendored Grounding DINO source includes this numerically
+            # equivalent torch/grid_sample implementation for CPU inference.
+            # It also operates on CUDA tensors and avoids the legacy extension
+            # build, which is incompatible with some managed notebook images.
+            def _pytorch_deformable_attention(
+                value,
+                spatial_shapes,
+                level_start_index,
+                sampling_locations,
+                attention_weights,
+                im2col_step,
+            ):
+                del level_start_index, im2col_step
+                return dino_msda.multi_scale_deformable_attn_pytorch(
+                    value,
+                    spatial_shapes,
+                    sampling_locations,
+                    attention_weights,
+                )
+
+            dino_msda.MultiScaleDeformableAttnFunction.apply = staticmethod(
+                _pytorch_deformable_attention
+            )
+            self._grounding_attention_backend = "torch_grid_sample"
+
+        filo_checkpoint = self._require_checkpoint(
+            self.checkpoint_path,
+            "FILO_CHECKPOINT",
+            root,
+            f"filo_train_on_{self._cross_dataset_weight_name()}.pth",
+            "FiLo",
+        )
+        grounding_checkpoint = self._require_checkpoint(
+            self.grounding_checkpoint_path,
+            "FILO_GROUNDING_CHECKPOINT",
+            root,
+            f"grounding_train_on_{self._cross_dataset_weight_name()}.pth",
+            "Grounding DINO",
+        )
+        config_path = _resolve_existing_path(self.groundingdino_config_path)
+        if config_path is None:
+            config_path = (
+                root
+                / "models"
+                / "GroundingDINO"
+                / "groundingdino"
+                / "config"
+                / "GroundingDINO_SwinT_OGC.py"
+            )
+        if not config_path.is_file():
+            raise FileNotFoundError(
+                f"FiLo Grounding DINO config not found: {config_path}"
+            )
+
+        dino_args = slconfig_module.SLConfig.fromfile(str(config_path))
+        dino_args.device = self.device
+        grounding_model = dino_models.build_model(dino_args)
+        grounding_state = self._torch_load(grounding_checkpoint, map_location="cpu")
+        grounding_model.load_state_dict(
+            dino_utils.clean_state_dict(grounding_state), strict=False
+        )
+        del grounding_state
+        grounding_model.to(self.device).eval()
+        for parameter in grounding_model.parameters():
+            parameter.requires_grad_(False)
+
+        args = SimpleNamespace(
+            clip_model=self.clip_model,
+            clip_pretrained=self.clip_pretrained,
+            image_size=self.image_size,
+            features_list=self.features_list,
+            n_ctx=self.n_ctx,
+            device=self.device,
+        )
+        obj_list = (
+            [
+                "bottle", "cable", "capsule", "carpet", "grid", "hazelnut",
+                "leather", "metal nut", "pill", "screw", "tile", "toothbrush",
+                "transistor", "wood", "zipper",
+            ]
+            if self.dataset_name == "mvtec"
+            else [
+                "candle", "cashew", "chewinggum", "fryum", "pipe fryum",
+                "macaroni1", "macaroni2", "pcb1", "pcb2", "pcb3", "pcb4",
+                "capsules",
+            ]
+        )
+        model = filo_module.FiLo(obj_list, args, self.device)
+        filo_state = self._torch_load(filo_checkpoint, map_location="cpu")
+        if not isinstance(filo_state, dict) or not isinstance(
+            filo_state.get("filo"), dict
+        ):
+            raise ValueError(
+                f"FiLo checkpoint {filo_checkpoint} does not contain a 'filo' "
+                "state_dict."
+            )
+        model.load_state_dict(filo_state["filo"], strict=False)
+        del filo_state
+        model.to(self.device).eval()
+        for parameter in model.parameters():
+            parameter.requires_grad_(False)
+
+        self.model = model
+        self.preprocess = model.preprocess
+        self.grounding_model = grounding_model
+        self._dino_transform = dino_transforms.Compose(
+            [
+                dino_transforms.RandomResize(
+                    [self.image_size, self.image_size], max_size=1333
+                ),
+                dino_transforms.ToTensor(),
+                dino_transforms.Normalize(
+                    [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
+                ),
+            ]
+        )
+        self._gaussian_blur = GaussianBlur(3, 4.0)
+        self._filo_module = filo_module
+        self._get_phrases_from_posmap = dino_utils.get_phrases_from_posmap
+        self._weight_dataset = self._cross_dataset_weight_name()
+        self._resolved_checkpoint = filo_checkpoint
+        self._resolved_grounding_checkpoint = grounding_checkpoint
+
+    def _find_filo_root(self) -> Path:
+        harness_dir = Path(__file__).resolve().parent
+        candidates = [
+            self.filo_root,
+            os.environ.get("FILO_ROOT"),
+            self.kwargs.get("model_root"),
+            "FiLo",
+            "../FiLo",
+            "../../FiLo",
+            str(harness_dir.parent / "FiLo"),
+            str(harness_dir.parent.parent / "FiLo"),
+            str(harness_dir.parent.parent.parent / "FiLo"),
+        ]
+        for candidate in candidates:
+            path = _resolve_existing_path(candidate)
+            if (
+                path
+                and (path / "models" / "FiLo.py").is_file()
+                and (path / "models" / "GroundingDINO").is_dir()
+            ):
+                return path
+        raise FileNotFoundError(
+            "Could not locate the FiLo source directory. Pass filo_root=... or "
+            "set FILO_ROOT to a clone of "
+            "https://github.com/CASIA-LMC-Lab/FiLo."
+        )
+
+    def _prepare_imports(self, root: Path) -> None:
+        for path in (root, root / "models" / "GroundingDINO"):
+            path_str = str(path)
+            if path_str in sys.path:
+                sys.path.remove(path_str)
+            sys.path.insert(0, path_str)
+        importlib.invalidate_caches()
+
+        # FiLo owns a top-level package called ``models``. Avoid accidentally
+        # reusing a package supplied by another external anomaly model.
+        expected_models_root = (root / "models").resolve()
+        loaded_models = sys.modules.get("models")
+        loaded_file = getattr(loaded_models, "__file__", None)
+        if loaded_file:
+            try:
+                is_filo_models = Path(loaded_file).resolve().is_relative_to(
+                    expected_models_root
+                )
+            except AttributeError:
+                is_filo_models = str(Path(loaded_file).resolve()).startswith(
+                    str(expected_models_root)
+                )
+            if not is_filo_models:
+                for module_name in list(sys.modules):
+                    if module_name == "models" or module_name.startswith("models."):
+                        sys.modules.pop(module_name, None)
+
+    def _cross_dataset_weight_name(self) -> str:
+        return "visa" if self.dataset_name == "mvtec" else "mvtec"
+
+    @staticmethod
+    def _torch_load(path: Path, map_location: str) -> Any:
+        try:
+            return torch.load(path, map_location=map_location, weights_only=False)
+        except TypeError:
+            return torch.load(path, map_location=map_location)
+
+    @staticmethod
+    def _require_checkpoint(
+        explicit_path: str,
+        environment_name: str,
+        root: Path,
+        expected_name: str,
+        label: str,
+    ) -> Path:
+        candidates = [
+            explicit_path,
+            os.environ.get(environment_name),
+            str(root / expected_name),
+            str(root / "ckpt" / expected_name),
+        ]
+        for candidate in candidates:
+            path = _resolve_existing_path(candidate)
+            if path and path.is_file():
+                return path
+        raise FileNotFoundError(
+            f"Could not locate the {label} checkpoint {expected_name}. Pass the "
+            f"path explicitly or set {environment_name}."
+        )
+
+    def _grounding_output(
+        self, image_tensor: torch.Tensor, caption: str
+    ) -> Tuple[torch.Tensor, list]:
+        caption = caption.lower().strip()
+        if not caption.endswith("."):
+            caption += "."
+        with torch.inference_mode():
+            outputs = self.grounding_model(
+                image_tensor[None].to(self.device), captions=[caption]
+            )
+        logits = outputs["pred_logits"].detach().cpu().sigmoid()[0]
+        boxes = outputs["pred_boxes"].detach().cpu()[0]
+        box_areas = boxes[:, 2] * boxes[:, 3]
+        keep = (logits.max(dim=1).values > self.box_threshold) & (
+            box_areas < self.area_threshold
+        )
+        if keep.any():
+            filtered_logits = logits[keep]
+            filtered_boxes = boxes[keep]
+        else:
+            best = torch.argmax(logits.max(dim=1).values)
+            filtered_logits = logits[best].unsqueeze(0)
+            filtered_boxes = boxes[best].unsqueeze(0)
+
+        tokenizer = self.grounding_model.tokenizer
+        tokenized = tokenizer(caption)
+        phrases = []
+        for logit in filtered_logits:
+            phrase = self._get_phrases_from_posmap(
+                logit > self.text_threshold, tokenized, tokenizer
+            )
+            phrases.append(phrase + f"({str(logit.max().item())[:4]})")
+        return filtered_boxes, phrases
+
+    def _localize(
+        self, image: Image.Image, category: str
+    ) -> Tuple[torch.Tensor, list]:
+        details_by_dataset = (
+            self._filo_module.mvtec_anomaly_detail_gpt
+            if self.dataset_name == "mvtec"
+            else self._filo_module.visa_anomaly_detail_gpt
+        )
+        if category not in details_by_dataset:
+            raise KeyError(
+                f"FiLo has no fine-grained anomaly descriptions for {category!r}."
+            )
+        details = details_by_dataset[category]
+        caption = " . ".join(
+            ["anomaly", "damage", "broken", "defect", "contamination"] + details
+        )
+        dino_image, _ = self._dino_transform(image, None)
+        boxes, phrases = self._grounding_output(dino_image, caption)
+
+        boxes_pixels = boxes.clone()
+        valid = []
+        scale = torch.tensor([self.image_size] * 4, dtype=boxes_pixels.dtype)
+        keywords = details + [
+            "anomaly", "damage", "broken", "defect", "contamination"
+        ]
+        for index in range(boxes_pixels.shape[0]):
+            is_valid = any(keyword in phrases[index] for keyword in keywords)
+            valid.append(is_valid)
+            if not is_valid:
+                continue
+            boxes_pixels[index] *= scale
+            boxes_pixels[index, :2] -= boxes_pixels[index, 2:] / 2
+            boxes_pixels[index, 2:] += boxes_pixels[index, :2]
+
+        max_box = None
+        max_probability = 0.0
+        for index, is_valid in enumerate(valid):
+            if not is_valid:
+                continue
+            probability = float(phrases[index].rsplit("(", 1)[1].rstrip(")"))
+            if probability >= max_probability:
+                max_box = boxes_pixels[index]
+                max_probability = probability
+        if max_box is None:
+            center = (259.0, 259.0)
+        else:
+            center = (
+                float((max_box[0] + max_box[2]) / 2),
+                float((max_box[1] + max_box[3]) / 2),
+            )
+
+        positions = []
+        for region, ((x1, y1), (x2, y2)) in self._filo_module.location_map.items():
+            if x1 <= center[0] <= x2 and y1 <= center[1] <= y2:
+                positions.append(region)
+                break
+        return boxes_pixels, positions
+
+    def forward_raw(
+        self, image: Image.Image, category: str = ""
+    ) -> Tuple[float, np.ndarray]:
+        if (
+            self.model is None
+            or self.preprocess is None
+            or self.grounding_model is None
+            or self._gaussian_blur is None
+        ):
+            raise RuntimeError("FiLo model is not loaded. Call load_model() first.")
+        if not isinstance(image, Image.Image):
+            raise TypeError("FiLoWrapper.forward_raw expects a PIL image.")
+
+        category = category.replace("_", " ").strip()
+        rgb_image = image.convert("RGB")
+        boxes, positions = self._localize(rgb_image, category)
+        image_tensor = self.preprocess(rgb_image).unsqueeze(0).to(
+            self.device, non_blocking=True
+        )
+        items = {"img": image_tensor, "cls_name": [category]}
+        with torch.inference_mode():
+            text_probs, anomaly_maps = self.model(
+                items, with_adapter=True, positions=positions
+            )
+            smoothed_maps = [
+                self._gaussian_blur(
+                    (anomaly_map[:, 1] - anomaly_map[:, 0] + 1) / 2
+                )
+                for anomaly_map in anomaly_maps
+            ]
+            anomaly_map = torch.mean(torch.stack(smoothed_maps), dim=0).unsqueeze(1)
+            score = (
+                text_probs.reshape(-1)[1].item() + anomaly_map.max().item()
+            ) / 2
+
+            # Match test.py: retain the original score inside Grounding DINO
+            # rectangles and down-weight all pixels outside them.
+            box_mask = anomaly_map.clone()
+            for rectangle in boxes:
+                left, top, right, bottom = [int(value.item()) for value in rectangle]
+                box_mask[:, :, top:bottom, left:right] = 1
+            anomaly_map = torch.where(
+                box_mask == 1,
+                anomaly_map,
+                anomaly_map * self.outside_box_weight,
+            )
+
+        return (
+            float(score),
+            anomaly_map[0, 0].detach().cpu().numpy().astype(np.float32),
+        )
+
+    def inference_provenance(self) -> Dict[str, Any]:
+        return {
+            "model": self.model_name,
+            "official_repository": "https://github.com/CASIA-LMC-Lab/FiLo",
+            "evaluation_dataset": self.dataset_name,
+            "weight_dataset": self._weight_dataset,
+            "filo_checkpoint": str(self._resolved_checkpoint or ""),
+            "grounding_checkpoint": str(
+                self._resolved_grounding_checkpoint or ""
+            ),
+            "image_size": self.image_size,
+            "features_list": self.features_list,
+            "n_ctx": self.n_ctx,
+            "box_threshold": self.box_threshold,
+            "text_threshold": self.text_threshold,
+            "area_threshold": self.area_threshold,
+            "outside_box_weight": self.outside_box_weight,
+            "grounding_attention_backend": self._grounding_attention_backend,
+        }
+
+    def release(self) -> None:
+        self.preprocess = None
+        self._dino_transform = None
+        self._gaussian_blur = None
+        self._filo_module = None
+        self._get_phrases_from_posmap = None
+        if self.grounding_model is not None:
+            del self.grounding_model
+            self.grounding_model = None
+        super().release()
+
+
 class AFCLIPWrapper(BaseModelWrapper):
     """Wrapper for the official AF-CLIP zero-shot inference implementation."""
 
@@ -1325,6 +1799,7 @@ MODEL_REGISTRY: Dict[str, type] = {
     "AdaCLIP": AdaCLIPWrapper,
     "AA-CLIP": AACLIPWrapper,
     "Bayes-PFL": BayesPFLWrapper,
+    "FiLo": FiLoWrapper,
     "AF-CLIP": AFCLIPWrapper,
     "CoPS": CoPSWrapper,
     "WinCLIP": WinCLIPWrapper,

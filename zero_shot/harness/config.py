@@ -57,6 +57,7 @@ LEARNABLE_MODELS: List[str] = [
     "AdaCLIP",
     "AA-CLIP",
     "Bayes-PFL",
+    "FiLo",
     "AF-CLIP",
     "CoPS",
 ]
@@ -72,7 +73,7 @@ ALL_MODELS: List[str] = LEARNABLE_MODELS + TRAINING_FREE_MODELS
 
 # Only these wrappers have executable model-specific inference implemented.
 # The remaining registered models are kept as placeholders for future work.
-COMPLETED_MODELS: List[str] = ["AnomalyCLIP", "AA-CLIP", "AF-CLIP"]
+COMPLETED_MODELS: List[str] = ["AnomalyCLIP", "AA-CLIP", "AF-CLIP", "FiLo"]
 
 # Dataset config
 MVTEC_CATEGORIES: List[str] = [

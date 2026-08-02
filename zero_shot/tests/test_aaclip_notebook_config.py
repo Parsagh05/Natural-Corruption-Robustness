@@ -41,6 +41,7 @@ class AACLIPNotebookConfigTest(unittest.TestCase):
             "kaggle_final_aaclip.ipynb",
             "kaggle_final_afclip.ipynb",
             "kaggle_final_anomalyclip.ipynb",
+            "kaggle_final_filo.ipynb",
         ):
             with self.subTest(notebook=notebook_name):
                 source = self._code_source(notebook_name)

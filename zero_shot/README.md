@@ -7,8 +7,9 @@ Implemented model wrappers:
 - AnomalyCLIP
 - AA-CLIP
 - AF-CLIP
+- FiLo
 
-The registry also names planned models, but only the three wrappers above have executable inference implementations.
+The registry also names planned models, but only the four wrappers above have executable inference implementations.
 
 ## Repository layout
 
@@ -17,9 +18,21 @@ zero_shot/
 |-- harness/                         Core datasets, model wrappers, metrics, runner, and storage
 |-- kaggle_final_*.ipynb             Kaggle evaluation launchers
 |-- kaggle_train_aaclip.ipynb        Kaggle AA-CLIP training launcher
+|-- kaggle_train_feclip.ipynb        Independent paper-faithful FE-CLIP training reconstruction
 |-- AA-CLIP/                         Checked-in AA-CLIP results
 `-- AF-CLIP/                         Checked-in AF-CLIP results
 ```
+
+`kaggle_train_feclip.ipynb` is self-contained because the FE-CLIP authors have
+not released the promised source code or checkpoints. It implements the
+paper-stated ViT-L/14@336px, FFE/LFS, cross-dataset training, losses, and
+9-epoch Adam protocol. Its default Kaggle configuration uses Accelerate/DDP on
+the T4 x2 accelerator with one persistent worker per GPU and gradient
+accumulation that preserves the paper's total batch size of 16. The notebook
+explicitly records every detail omitted or
+internally inconsistent in the paper in its checkpoint metadata; consequently,
+it is a transparent reconstruction rather than an official implementation.
+FE-CLIP inference is not yet registered as an executable harness wrapper.
 
 Reusable corruption assets live at the repository root: the vendored
 implementation and frost assets are in `shared/imagenet_c/`, while fixed
@@ -49,6 +62,16 @@ Notebook-specific external assets:
 | `kaggle_final_anomalyclip.ipynb` | `zqhang/AnomalyCLIP` | AnomalyCLIP `epoch_15.pth` prompt checkpoint |
 | `kaggle_final_aaclip.ipynb` | `Mwxinnn/AA-CLIP` | image/text adapter checkpoint directory and `ViT-L-14-336px.pt` |
 | `kaggle_final_afclip.ipynb` | `Faustinaqq/AF-CLIP` | Prompt/adaptor weights included upstream; CLIP backbone downloaded or supplied as input |
+| `kaggle_final_filo.ipynb` | `CASIA-LMC-Lab/FiLo` | Cross-dataset FiLo and fine-tuned Grounding DINO checkpoints downloaded from `FantasticGNU/FiLo`; OpenAI CLIP backbone downloaded automatically |
+
+FiLo follows the official cross-dataset zero-shot protocol: VisA-trained FiLo
+and Grounding DINO weights evaluate MVTec, while MVTec-trained weights evaluate
+VisA. Its Kaggle launcher uses Grounding DINO's bundled PyTorch deformable-
+attention fallback when its optional compiled extension is unavailable, and
+intentionally uses batch size 1 because the released FiLo forward path is
+single-image. Enable a GPU and Internet. An offline rerun must attach the two
+matching checkpoints and pre-populate the OpenAI CLIP and BERT tokenizer/model
+caches.
 
 The notebooks use Kaggle paths by design. Dataset mount variables are near the top of each evaluation cell and must match the attached Kaggle inputs.
 
