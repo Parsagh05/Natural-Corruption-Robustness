@@ -73,6 +73,12 @@ single-image. Enable a GPU and Internet. An offline rerun must attach the two
 matching checkpoints and pre-populate the OpenAI CLIP and BERT tokenizer/model
 caches.
 
+FiLo's official inference produces its final anomaly map at 518 x 518. The
+runner uses that full-resolution map for grouped and fine-grained pixel metrics,
+but archives a 37 x 37 representation on FiLo's native ViT-L/14 token grid.
+This keeps `FiLo_artifacts.zip` comparable in size to the other model archives
+without changing the metrics produced during the run.
+
 The notebooks use Kaggle paths by design. Dataset mount variables are near the top of each evaluation cell and must match the attached Kaggle inputs.
 
 ## Local setup

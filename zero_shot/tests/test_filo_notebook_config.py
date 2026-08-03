@@ -109,6 +109,20 @@ class FiLoRegistryTest(unittest.TestCase):
         self.assertEqual(wrapper.model.positions, ["top left"])
         self.assertTrue(wrapper.model.with_adapter)
 
+    def test_artifact_maps_are_compact_without_changing_metric_maps(self):
+        wrapper = FiLoWrapper(device="cpu", dataset_name="visa")
+        full_maps = np.linspace(
+            0.0, 1.0, num=2 * 518 * 518, dtype=np.float32
+        ).reshape(2, 518, 518)
+
+        compact_maps = wrapper.prepare_artifact_maps(full_maps)
+
+        self.assertEqual(compact_maps.shape, (2, 37, 37))
+        self.assertEqual(compact_maps.dtype, np.float32)
+        self.assertEqual(full_maps.shape, (2, 518, 518))
+        self.assertGreaterEqual(float(compact_maps.min()), 0.0)
+        self.assertLessEqual(float(compact_maps.max()), 1.0)
+
 
 if __name__ == "__main__":
     unittest.main()

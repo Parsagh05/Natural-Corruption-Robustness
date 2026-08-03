@@ -405,12 +405,26 @@ class RobustnessRunner:
         # Flush and save
         scores, lowres_maps, metadata = accumulator.flush()
 
+        artifact_map_preparer = getattr(
+            model_wrapper, "prepare_artifact_maps", None
+        )
+        artifact_maps = (
+            lowres_maps
+            if artifact_map_preparer is None
+            else np.asarray(artifact_map_preparer(lowres_maps))
+        )
+        if artifact_maps.ndim != 3 or artifact_maps.shape[0] != len(metadata):
+            raise RuntimeError(
+                "Artifact-map shape does not match inference metadata: "
+                f"{artifact_maps.shape} for {len(metadata)} samples."
+            )
+
         condition_postprocessing = bool(
             getattr(model_wrapper, "condition_postprocessing", False)
         )
         if not condition_postprocessing:
-            # Preserve the original storage timing and exact raw outputs for
-            # every non-AA model.
+            # Preserve the original storage timing. Wrappers may select a
+            # compact artifact representation without changing metric inputs.
             self.storage.save_artifacts(
                 model_name=model_name,
                 dataset_name=dataset_name,
@@ -418,7 +432,7 @@ class RobustnessRunner:
                 noise_type=corruption_type,
                 severity=severity,
                 scores=scores,
-                lowres_maps=lowres_maps,
+                lowres_maps=artifact_maps,
                 metadata=metadata,
             )
 
@@ -507,7 +521,7 @@ class RobustnessRunner:
                 noise_type=corruption_type,
                 severity=severity,
                 scores=scores,
-                lowres_maps=lowres_maps,
+                lowres_maps=artifact_maps,
                 metadata=metadata,
             )
 

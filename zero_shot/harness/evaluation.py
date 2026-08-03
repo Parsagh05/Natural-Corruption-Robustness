@@ -435,7 +435,7 @@ class EvaluationHarness:
                                 lowres_map,
                                 metric_size,
                                 metric_size,
-                                align_corners=(model_name == "AA-CLIP"),
+                                align_corners=(model_name in {"AA-CLIP", "FiLo"}),
                             )
                         )
 

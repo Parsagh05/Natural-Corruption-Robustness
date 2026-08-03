@@ -96,6 +96,15 @@ class BaseModelWrapper(ABC):
         )
         return resized[0, 0].cpu().numpy().astype(np.float32)
 
+    def prepare_artifact_maps(self, anomaly_maps: np.ndarray) -> np.ndarray:
+        """Return maps to serialize after metric inputs have been retained.
+
+        Most wrappers already return token-resolution maps, so preserving the
+        input is the correct default. Models that expose only full-resolution
+        predictions can override this hook to avoid oversized artifact files.
+        """
+        return anomaly_maps
+
     def inference_provenance(self) -> Dict[str, Any]:
         """Return JSON-serializable model provenance for run manifests."""
         return {"model": self.model_name}
@@ -1355,6 +1364,28 @@ class FiLoWrapper(BaseModelWrapper):
             anomaly_map[0, 0].detach().cpu().numpy().astype(np.float32),
         )
 
+    def prepare_artifact_maps(self, anomaly_maps: np.ndarray) -> np.ndarray:
+        """Store FiLo maps on its native 37x37 ViT-L/14 token grid.
+
+        FiLo performs its official softmax, smoothing, and Grounding-DINO box
+        fusion at 518x518. The runner keeps those exact maps for every metric;
+        only the archived copy is reduced to the native token-grid resolution.
+        """
+        maps = np.asarray(anomaly_maps)
+        if maps.ndim != 3:
+            raise ValueError(
+                f"FiLo artifact maps must have shape [N, H, W], got {maps.shape}."
+            )
+        token_resolution = self.image_size // 14
+        map_tensor = torch.from_numpy(maps).float().unsqueeze(1)
+        compact = F.interpolate(
+            map_tensor,
+            size=(token_resolution, token_resolution),
+            mode="bilinear",
+            align_corners=True,
+        )
+        return compact[:, 0].cpu().numpy().astype(np.float32)
+
     def inference_provenance(self) -> Dict[str, Any]:
         return {
             "model": self.model_name,
@@ -1373,6 +1404,7 @@ class FiLoWrapper(BaseModelWrapper):
             "area_threshold": self.area_threshold,
             "outside_box_weight": self.outside_box_weight,
             "grounding_attention_backend": self._grounding_attention_backend,
+            "artifact_map_resolution": self.image_size // 14,
         }
 
     def release(self) -> None:
