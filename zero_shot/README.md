@@ -19,6 +19,7 @@ zero_shot/
 |-- kaggle_final_*.ipynb             Kaggle evaluation launchers
 |-- kaggle_train_aaclip.ipynb        Kaggle AA-CLIP training launcher
 |-- kaggle_train_feclip.ipynb        Independent paper-faithful FE-CLIP training reconstruction
+|-- kaggle_check_feclip.ipynb        Clean MVTec/VisA verification against FE-CLIP paper tables
 |-- AA-CLIP/                         Checked-in AA-CLIP results
 `-- AF-CLIP/                         Checked-in AF-CLIP results
 ```
@@ -33,6 +34,11 @@ explicitly records every detail omitted or
 internally inconsistent in the paper in its checkpoint metadata; consequently,
 it is a transparent reconstruction rather than an official implementation.
 FE-CLIP inference is not yet registered as an executable harness wrapper.
+`kaggle_check_feclip.ipynb` is a separate, self-contained clean-data audit: it
+downloads the final Hugging Face archive, verifies both checkpoint directions,
+computes the paper's per-category image AUROC/AP and pixel AUROC/PRO, macro
+averages them, and exports an explicit gap/verdict against Tables 1--3. It does
+not run the natural-corruption benchmark.
 
 Reusable corruption assets live at the repository root: the vendored
 implementation and frost assets are in `shared/imagenet_c/`, while fixed
