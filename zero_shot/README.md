@@ -7,9 +7,11 @@ Implemented model wrappers:
 - AnomalyCLIP
 - AA-CLIP
 - AF-CLIP
+- FB-CLIP
 - FiLo
+- Tipsomaly
 
-The registry also names planned models, but only the four wrappers above have executable inference implementations.
+The registry also names planned models, but only the six wrappers above have executable inference implementations.
 
 ## Repository layout
 
@@ -68,7 +70,9 @@ Notebook-specific external assets:
 | `kaggle_final_anomalyclip.ipynb` | `zqhang/AnomalyCLIP` | AnomalyCLIP `epoch_15.pth` prompt checkpoint |
 | `kaggle_final_aaclip.ipynb` | `Mwxinnn/AA-CLIP` | image/text adapter checkpoint directory and `ViT-L-14-336px.pt` |
 | `kaggle_final_afclip.ipynb` | `Faustinaqq/AF-CLIP` | Prompt/adaptor weights included upstream; CLIP backbone downloaded or supplied as input |
+| `kaggle_final_fbclip.ipynb` | `Xi-Mu-Yu/FB-CLIP` | Cross-dataset `mvtec_epoch_1_model.pth` / `visa_epoch_2_model.pth` from the authors' public Google Drive folder; OpenAI CLIP backbone downloaded or supplied as input |
 | `kaggle_final_filo.ipynb` | `CASIA-LMC-Lab/FiLo` | Cross-dataset FiLo and fine-tuned Grounding DINO checkpoints downloaded from `FantasticGNU/FiLo`; OpenAI CLIP backbone downloaded automatically |
+| `kaggle_final_tipsomaly.ipynb` | `Alireza99Salehi/Tipsomaly` | Cross-dataset `learnable_params_2.pth` included upstream; TIPS-L/14-HR vision/text NPZ files and tokenizer downloaded from the official TIPS bucket or supplied as a Kaggle input |
 
 FiLo follows the official cross-dataset zero-shot protocol: VisA-trained FiLo
 and Grounding DINO weights evaluate MVTec, while MVTec-trained weights evaluate
@@ -79,11 +83,30 @@ single-image. Enable a GPU and Internet. An offline rerun must attach the two
 matching checkpoints and pre-populate the OpenAI CLIP and BERT tokenizer/model
 caches.
 
+FB-CLIP uses the same cross-dataset protocol: the released VisA epoch-2
+checkpoint evaluates MVTec AD, while the released MVTec epoch-1 checkpoint
+evaluates VisA. The wrapper preserves the authors' class-agnostic learned
+prompt, foreground/background inference, native token-grid prediction, 518 x
+518 bilinear metric resize, and optional sigma-4 Gaussian filtering enabled by
+their test script. The Kaggle launcher first reuses attached checkpoint and
+CLIP files, then downloads the exact public Google Drive checkpoint ID and the
+SHA-256-verified OpenAI ViT-L/14@336px backbone when Internet is available.
+
 FiLo's official inference produces its final anomaly map at 518 x 518. The
 runner uses that full-resolution map for grouped and fine-grained pixel metrics,
 but archives a 37 x 37 representation on FiLo's native ViT-L/14 token grid.
 This keeps `FiLo_artifacts.zip` comparable in size to the other model archives
 without changing the metrics produced during the run.
+
+Tipsomaly also follows the official cross-dataset zero-shot protocol: its
+VisA-trained learned prompts evaluate MVTec, and its MVTec-trained prompts
+evaluate VisA. The wrapper preserves the paper's decoupled inference: fixed
+class prompts score TIPS's spatial global token, learned class-agnostic prompts
+score the 37 x 37 patch grid, the strongest abnormal patch augments the image
+score, and bilinear upsampling plus a sigma-4 Gaussian filter produces the
+518 x 518 metric map. The learned prompt checkpoints are in the upstream
+repository. The much larger TIPS backbone components are downloaded from the
+official Google Cloud bucket unless attached for an offline Kaggle rerun.
 
 The notebooks use Kaggle paths by design. Dataset mount variables are near the top of each evaluation cell and must match the attached Kaggle inputs.
 

@@ -922,6 +922,411 @@ class BayesPFLWrapper(BaseModelWrapper):
         return 0.0, lowres_map
 
 
+class TipsomalyWrapper(BaseModelWrapper):
+    """Paper-faithful wrapper for the official Tipsomaly implementation."""
+
+    fail_on_inference_error = True
+
+    def __init__(
+        self,
+        checkpoint_path: str = "",
+        tipsomaly_root: str = "",
+        models_dir: str = "",
+        dataset_name: str = "mvtec",
+        weight_dataset: str = "",
+        model_version: str = "l14h",
+        image_size: int = 518,
+        sigma: float = 4.0,
+        epoch: int = 2,
+        fixed_prompt_type: str = "industrial",
+        prompt_learn_method: str = "concat",
+        n_prompt: int = 8,
+        decoupled_prompt: bool = True,
+        aggregate_local2global: bool = True,
+        **kwargs,
+    ):
+        super().__init__("Tipsomaly", **kwargs)
+        self.checkpoint_path = checkpoint_path
+        self.tipsomaly_root = tipsomaly_root
+        self.models_dir = models_dir
+        self.dataset_name = dataset_name.lower().strip()
+        self.weight_dataset = weight_dataset.lower().strip()
+        self.model_version = model_version
+        self.image_size = int(image_size)
+        self.sigma = float(sigma)
+        self.epoch = int(epoch)
+        self.fixed_prompt_type = fixed_prompt_type
+        self.prompt_learn_method = prompt_learn_method
+        self.n_prompt = int(n_prompt)
+        self.decoupled_prompt = bool(decoupled_prompt)
+        self.aggregate_local2global = bool(aggregate_local2global)
+
+        self.preprocess = None
+        self.text_encoder = None
+        self.temperature = None
+        self._fixed_text_features: Dict[str, torch.Tensor] = {}
+        self._learnable_text_features = None
+        self._resolved_checkpoint = None
+        self._resolved_models_dir = None
+        self._weight_dataset = ""
+
+    def load_model(self) -> None:
+        if self.dataset_name not in {"mvtec", "visa"}:
+            raise ValueError(
+                "Tipsomaly dataset_name must be 'mvtec' or 'visa', got "
+                f"{self.dataset_name!r}."
+            )
+        if self.image_size != 518:
+            raise ValueError(
+                "The released Tipsomaly checkpoints use image_size=518."
+            )
+        if not self.decoupled_prompt:
+            raise ValueError(
+                "The published Tipsomaly zero-shot method requires "
+                "decoupled_prompt=True."
+            )
+
+        root = self._find_tipsomaly_root()
+        self._prepare_imports(root)
+        try:
+            tips_module = importlib.import_module("model.tips")
+            omaly_module = importlib.import_module("model.omaly")
+            transforms_module = importlib.import_module("datasets.input_transforms")
+        except ImportError as exc:
+            raise ImportError(
+                f"Failed to import Tipsomaly from {root}. Install sentencepiece, "
+                "scipy, and the official repository requirements needed by the "
+                f"TIPS backbone. Original error: {exc!r}"
+            ) from exc
+
+        weight_dataset = self._cross_dataset_weight_name()
+        checkpoint = self._find_checkpoint(root, weight_dataset)
+        models_dir = self._find_models_dir(root)
+
+        backbone_vision, backbone_text, tokenizer, temperature = (
+            tips_module.load_model.get_model(str(models_dir), self.model_version)
+        )
+        preprocess, _ = transforms_module.create_transforms_tips(self.image_size)
+
+        for backbone in (backbone_vision, backbone_text):
+            backbone.to(self.device).eval()
+            for parameter in backbone.parameters():
+                parameter.requires_grad_(False)
+
+        text_encoder = omaly_module.text_encoder(
+            tokenizer,
+            backbone_text,
+            "tips",
+            backbone_text.transformer.width,
+            64,
+            self.prompt_learn_method,
+            self.fixed_prompt_type,
+            self.n_prompt,
+            0,
+            0,
+        )
+        checkpoint_object = self._torch_load(checkpoint, map_location="cpu")
+        learnable_prompts = (
+            checkpoint_object.get("learnable_prompts")
+            if isinstance(checkpoint_object, dict)
+            else checkpoint_object
+        )
+        if not isinstance(learnable_prompts, nn.ParameterList):
+            raise TypeError(
+                f"Tipsomaly checkpoint {checkpoint} must contain a ParameterList "
+                "under 'learnable_prompts'."
+            )
+        if len(learnable_prompts) != 2:
+            raise ValueError(
+                f"Tipsomaly checkpoint {checkpoint} contains "
+                f"{len(learnable_prompts)} prompt tensors; expected 2."
+            )
+        text_encoder.learnable_prompts = learnable_prompts
+        text_encoder.to(self.device).eval()
+        for parameter in text_encoder.parameters():
+            parameter.requires_grad_(False)
+
+        vision_encoder = omaly_module.vision_encoder(
+            backbone_vision, "tips"
+        ).to(self.device).eval()
+        for parameter in vision_encoder.parameters():
+            parameter.requires_grad_(False)
+
+        with torch.inference_mode():
+            learned_features = text_encoder(["object"], self.device, learned=True)
+            learned_features = learned_features / learned_features.norm(
+                dim=-1, keepdim=True
+            )
+
+        self.model = vision_encoder
+        self.text_encoder = text_encoder
+        self.preprocess = preprocess
+        self.temperature = torch.as_tensor(temperature, device=self.device)
+        self._learnable_text_features = learned_features
+        self._fixed_text_features.clear()
+        self._resolved_checkpoint = checkpoint
+        self._resolved_models_dir = models_dir
+        self._weight_dataset = weight_dataset
+
+    def _find_tipsomaly_root(self) -> Path:
+        harness_dir = Path(__file__).resolve().parent
+        candidates = [
+            self.tipsomaly_root,
+            os.environ.get("TIPSOMALY_ROOT"),
+            self.kwargs.get("model_root"),
+            "Tipsomaly",
+            "../Tipsomaly",
+            "../../Tipsomaly",
+            str(harness_dir.parent / "Tipsomaly"),
+            str(harness_dir.parent.parent / "Tipsomaly"),
+            str(harness_dir.parent.parent.parent / "Tipsomaly"),
+        ]
+        for candidate in candidates:
+            path = _resolve_existing_path(candidate)
+            if (
+                path
+                and (path / "model" / "tips" / "load_model.py").is_file()
+                and (path / "model" / "omaly" / "text_encoder.py").is_file()
+            ):
+                return path
+        raise FileNotFoundError(
+            "Could not locate the Tipsomaly source directory. Pass "
+            "tipsomaly_root=... or set TIPSOMALY_ROOT to a clone of "
+            "https://github.com/Alireza99Salehi/Tipsomaly."
+        )
+
+    @staticmethod
+    def _prepare_imports(root: Path) -> None:
+        root_str = str(root)
+        if root_str in sys.path:
+            sys.path.remove(root_str)
+        sys.path.insert(0, root_str)
+        importlib.invalidate_caches()
+
+        # Tipsomaly owns top-level packages named ``model`` and ``datasets``.
+        # Clear identically named packages left by another model implementation.
+        for module_name in list(sys.modules):
+            if (
+                module_name == "model"
+                or module_name.startswith("model.")
+                or module_name == "datasets"
+                or module_name.startswith("datasets.")
+            ):
+                sys.modules.pop(module_name, None)
+
+    def _cross_dataset_weight_name(self) -> str:
+        expected = "visa" if self.dataset_name == "mvtec" else "mvtec"
+        selected = self.weight_dataset or expected
+        if selected not in {"mvtec", "visa"}:
+            raise ValueError(
+                "Tipsomaly weight_dataset must be 'mvtec' or 'visa', got "
+                f"{selected!r}."
+            )
+        if selected == self.dataset_name:
+            raise ValueError(
+                "Tipsomaly zero-shot evaluation requires the checkpoint trained "
+                f"on the other dataset; target={self.dataset_name}, weights={selected}."
+            )
+        return selected
+
+    def _find_checkpoint(self, root: Path, weight_dataset: str) -> Path:
+        path = _resolve_existing_path(self.checkpoint_path)
+        if path and path.is_file():
+            return path
+        filename = f"learnable_params_{self.epoch}.pth"
+        if path and path.is_dir():
+            candidate = path / filename
+            if candidate.is_file():
+                return candidate
+
+        env_path = _resolve_existing_path(os.environ.get("TIPSOMALY_CHECKPOINT"))
+        if env_path and env_path.is_file():
+            return env_path
+        default = (
+            root
+            / "workspaces"
+            / f"trained_on_{weight_dataset}_default"
+            / "vegan-arkansas"
+            / "checkpoints"
+            / filename
+        )
+        if default.is_file():
+            return default
+        raise FileNotFoundError(
+            "Could not locate Tipsomaly's released learnable prompt checkpoint. "
+            f"Expected {default}, or pass checkpoint_path explicitly."
+        )
+
+    def _find_models_dir(self, root: Path) -> Path:
+        candidates = [
+            self.models_dir,
+            os.environ.get("TIPS_MODELS_DIR"),
+            str(root / "tips"),
+        ]
+        for candidate in candidates:
+            path = _resolve_existing_path(candidate)
+            if path and path.is_dir():
+                return path
+        # The official loader creates this directory and downloads missing TIPS
+        # base components when Internet access is available.
+        path = Path(self.models_dir or root / "tips").expanduser()
+        path.mkdir(parents=True, exist_ok=True)
+        return path
+
+    @staticmethod
+    def _torch_load(path: Path, map_location: str) -> Any:
+        try:
+            return torch.load(
+                path,
+                map_location=map_location,
+                weights_only=False,
+            )
+        except TypeError:
+            return torch.load(path, map_location=map_location)
+
+    def _fixed_features_for_category(self, category: str) -> torch.Tensor:
+        category = category.replace("_", " ").strip()
+        if not category:
+            raise ValueError("Tipsomaly requires a non-empty category name.")
+        if category not in self._fixed_text_features:
+            with torch.inference_mode():
+                features = self.text_encoder([category], self.device, learned=False)
+                features = features / features.norm(dim=-1, keepdim=True)
+            self._fixed_text_features[category] = features
+        return self._fixed_text_features[category]
+
+    def forward_raw(
+        self, image: Image.Image, category: str = ""
+    ) -> Tuple[float, np.ndarray]:
+        scores, lowres_maps = self.forward_raw_batch([image], category=category)
+        return float(scores[0]), lowres_maps[0]
+
+    def forward_raw_batch(
+        self, images: Sequence[Image.Image], category: str = ""
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        if (
+            self.model is None
+            or self.preprocess is None
+            or self.text_encoder is None
+            or self.temperature is None
+            or self._learnable_text_features is None
+        ):
+            raise RuntimeError("Tipsomaly model is not loaded. Call load_model() first.")
+        if not images:
+            return (
+                np.zeros((0,), dtype=np.float32),
+                np.zeros((0, 0, 0), dtype=np.float32),
+            )
+        if not all(isinstance(image, Image.Image) for image in images):
+            raise TypeError("TipsomalyWrapper.forward_raw_batch expects PIL images.")
+
+        image_tensor = torch.stack(
+            [self.preprocess(image.convert("RGB")) for image in images]
+        ).to(self.device, non_blocking=True)
+        fixed_features = self._fixed_features_for_category(category)
+
+        with torch.inference_mode():
+            vision_features = self.model(image_tensor)
+            vision_features = [
+                feature / feature.norm(dim=-1, keepdim=True)
+                for feature in vision_features
+            ]
+            spatial_probs = F.softmax(
+                (
+                    vision_features[1]
+                    @ fixed_features.permute(0, 2, 1)
+                )
+                / self.temperature,
+                dim=-1,
+            ).squeeze(1)
+            patch_probs = F.softmax(
+                (
+                    vision_features[2]
+                    @ self._learnable_text_features.permute(0, 2, 1)
+                )
+                / self.temperature,
+                dim=-1,
+            )
+
+            # Paper inference: the spatial global token's anomaly probability
+            # plus the strongest abnormal patch evidence.
+            anomaly_scores = spatial_probs[:, 1]
+            if self.aggregate_local2global:
+                anomaly_scores = (
+                    anomaly_scores + patch_probs[:, :, 1].max(dim=1).values
+                )
+
+            token_count = patch_probs.shape[1]
+            side = int(token_count ** 0.5)
+            if side * side != token_count:
+                raise ValueError(
+                    "Tipsomaly patch tokens do not form a square map: "
+                    f"{token_count} tokens."
+                )
+            lowres_maps = (
+                1 - patch_probs[..., 0] + patch_probs[..., 1]
+            ) / 2.0
+            lowres_maps = lowres_maps.reshape(-1, side, side)
+
+        return (
+            anomaly_scores.detach().cpu().numpy().astype(np.float32),
+            lowres_maps.detach().cpu().numpy().astype(np.float32),
+        )
+
+    def prepare_metric_map(self, anomaly_map: np.ndarray) -> np.ndarray:
+        """Apply Tipsomaly's official bilinear upsampling and Gaussian filter."""
+        from scipy.ndimage import gaussian_filter
+
+        map_tensor = torch.from_numpy(np.asarray(anomaly_map)).float()[None, None]
+        upsampled = F.interpolate(
+            map_tensor,
+            size=(self.image_size, self.image_size),
+            mode="bilinear",
+            align_corners=False,
+        )[0, 0].cpu().numpy()
+        return gaussian_filter(upsampled, sigma=self.sigma).astype(np.float32)
+
+    def prepare_metric_mask(self, mask: np.ndarray) -> np.ndarray:
+        """Match the upstream PIL bilinear mask resize followed by thresholding."""
+        binary_mask = (np.asarray(mask) > 0.5).astype(np.uint8) * 255
+        pil_mask = Image.fromarray(binary_mask)
+        resized = pil_mask.resize(
+            (self.image_size, self.image_size),
+            resample=Image.Resampling.BILINEAR,
+        )
+        return (np.asarray(resized) > 127.5).astype(np.float32)
+
+    def inference_provenance(self) -> Dict[str, Any]:
+        return {
+            "model": self.model_name,
+            "official_repository": (
+                "https://github.com/Alireza99Salehi/Tipsomaly"
+            ),
+            "evaluation_dataset": self.dataset_name,
+            "weight_dataset": self._weight_dataset,
+            "checkpoint": str(self._resolved_checkpoint or ""),
+            "tips_models_dir": str(self._resolved_models_dir or ""),
+            "model_version": self.model_version,
+            "image_size": self.image_size,
+            "sigma": self.sigma,
+            "epoch": self.epoch,
+            "fixed_prompt_type": self.fixed_prompt_type,
+            "prompt_learn_method": self.prompt_learn_method,
+            "n_prompt": self.n_prompt,
+            "decoupled_prompt": self.decoupled_prompt,
+            "aggregate_local2global": self.aggregate_local2global,
+            "artifact_map_resolution": self.image_size // 14,
+        }
+
+    def release(self) -> None:
+        self.preprocess = None
+        self.text_encoder = None
+        self.temperature = None
+        self._fixed_text_features.clear()
+        self._learnable_text_features = None
+        super().release()
+
+
 class FiLoWrapper(BaseModelWrapper):
     """Paper-faithful wrapper for the official FiLo implementation."""
 
@@ -1738,6 +2143,415 @@ class AFCLIPWrapper(BaseModelWrapper):
         super().release()
 
 
+class FBCLIPWrapper(BaseModelWrapper):
+    """Wrapper for the official FB-CLIP cross-dataset inference path."""
+
+    fail_on_inference_error = True
+
+    def __init__(
+        self,
+        checkpoint_path: str = "",
+        fbclip_root: str = "",
+        dataset_name: str = "",
+        weight_dataset: str = "",
+        clip_weight_path: str = "",
+        clip_download_dir: str = "",
+        clip_model_name: str = "ViT-L/14@336px",
+        image_size: int = 518,
+        depth: int = 9,
+        n_ctx: int = 12,
+        t_n_ctx: int = 4,
+        feature_map_layer: Optional[Sequence[int]] = None,
+        features_list: Optional[Sequence[int]] = None,
+        feature_layers: Optional[Sequence[int]] = None,
+        sigma: float = 4.0,
+        use_gaussian_filter: bool = True,
+        **kwargs,
+    ):
+        super().__init__("FB-CLIP", **kwargs)
+        self.checkpoint_path = checkpoint_path
+        self.fbclip_root = fbclip_root
+        self.dataset_name = dataset_name.lower().strip()
+        self.weight_dataset = weight_dataset.lower().strip()
+        self.clip_weight_path = clip_weight_path
+        self.clip_download_dir = clip_download_dir
+        self.clip_model_name = clip_model_name
+        self.image_size = int(image_size)
+        self.depth = int(depth)
+        self.n_ctx = int(n_ctx)
+        self.t_n_ctx = int(t_n_ctx)
+        self.feature_map_layer = list(
+            _as_tuple(feature_map_layer, (5, 11, 17, 24))
+        )
+        self.features_list = list(_as_tuple(features_list, (5, 11, 17, 24)))
+        self.feature_layers = list(
+            _as_tuple(feature_layers, (1, 6, 12, 18, 24))
+        )
+        self.sigma = float(sigma)
+        self.use_gaussian_filter = bool(use_gaussian_filter)
+        self.preprocess = None
+        self.prompt_learner = None
+        self._args = None
+        self._resolved_checkpoint: Optional[Path] = None
+        self._resolved_clip_weight: Optional[Path] = None
+
+    def load_model(self) -> None:
+        if self.weight_dataset not in {"mvtec", "visa"}:
+            raise ValueError(
+                "FB-CLIP weight_dataset must identify the checkpoint's training "
+                f"domain ('mvtec' or 'visa'), got {self.weight_dataset!r}."
+            )
+        if self.dataset_name:
+            self._cross_dataset_weight_name()
+
+        root = self._find_fbclip_root()
+        checkpoint = self._find_checkpoint(root)
+        self._prepare_imports(root)
+
+        try:
+            fbclip_module = importlib.import_module("FBCLIP_lib")
+            model_load_module = importlib.import_module("FBCLIP_lib.model_load")
+            prompt_module = importlib.import_module("prompt_ensemble")
+            from torchvision import transforms
+        except ImportError as exc:
+            raise ImportError(
+                f"Failed to import FB-CLIP from {root}. Install the official "
+                "requirements and ensure the clone is complete. "
+                f"Original error: {exc!r}"
+            ) from exc
+
+        # The released model loader references hashlib during its verified
+        # OpenAI CLIP download but does not import it in the current upstream
+        # revision. Supplying the standard-library module keeps that official
+        # download path usable without modifying the clone.
+        if not hasattr(model_load_module, "hashlib"):
+            import hashlib
+
+            model_load_module.hashlib = hashlib
+
+        design_details = {
+            "Prompt_length": self.n_ctx,
+            "learnabel_text_embedding_depth": self.depth,
+            "learnabel_text_embedding_length": self.t_n_ctx,
+        }
+        clip_source = self._find_clip_weight(root)
+        download_root = Path(
+            self.clip_download_dir
+            or os.environ.get("FBCLIP_CLIP_DOWNLOAD_DIR", "")
+            or root / "clip"
+        )
+        model, _ = fbclip_module.load(
+            str(clip_source) if clip_source else self.clip_model_name,
+            device=self.device,
+            design_details=design_details,
+            download_root=str(download_root),
+        )
+        for parameter in model.parameters():
+            parameter.requires_grad_(False)
+
+        # Match test_with_trained_model_pic.py: construct the class-agnostic
+        # prompt learner while CLIP is on CPU, then install FB modules on the
+        # target device before loading their released parameters.
+        prompt_learner = prompt_module.FBCLIP_PromptLearner(
+            model.to("cpu"), design_details
+        )
+        prompt_learner.to(self.device)
+        model.to(self.device)
+        self._args = SimpleNamespace(
+            depth=self.depth,
+            n_ctx=self.n_ctx,
+            t_n_ctx=self.t_n_ctx,
+            feature_map_layer=self.feature_map_layer,
+            features_list=self.features_list,
+            feature_layers=self.feature_layers,
+            image_size=self.image_size,
+        )
+        model.FB_params(args=self._args, device=self.device)
+
+        checkpoint_object = self._load_checkpoint(checkpoint)
+        self._install_checkpoint(model, prompt_learner, checkpoint_object, checkpoint)
+
+        self.preprocess = transforms.Compose(
+            [
+                transforms.Resize(
+                    (self.image_size, self.image_size),
+                    interpolation=transforms.InterpolationMode.BICUBIC,
+                    antialias=True,
+                ),
+                transforms.CenterCrop((self.image_size, self.image_size)),
+                lambda image: image.convert("RGB"),
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    (0.48145466, 0.4578275, 0.40821073),
+                    (0.26862954, 0.26130258, 0.27577711),
+                ),
+            ]
+        )
+        model.eval()
+        prompt_learner.eval()
+        self.model = model
+        self.prompt_learner = prompt_learner
+        self._resolved_checkpoint = checkpoint
+        self._resolved_clip_weight = clip_source
+
+    def _cross_dataset_weight_name(self) -> str:
+        if self.dataset_name not in {"mvtec", "visa"}:
+            raise ValueError(
+                "FB-CLIP dataset_name must be 'mvtec' or 'visa', got "
+                f"{self.dataset_name!r}."
+            )
+        expected = "visa" if self.dataset_name == "mvtec" else "mvtec"
+        if self.weight_dataset and self.weight_dataset != expected:
+            raise ValueError(
+                "FB-CLIP zero-shot evaluation requires weights trained on the "
+                f"other dataset: target={self.dataset_name!r}, expected "
+                f"weight_dataset={expected!r}, got {self.weight_dataset!r}."
+            )
+        return expected
+
+    def _find_fbclip_root(self) -> Path:
+        harness_dir = Path(__file__).resolve().parent
+        candidates = [
+            self.fbclip_root,
+            os.environ.get("FBCLIP_ROOT"),
+            self.kwargs.get("model_root"),
+            "FB-CLIP",
+            "../FB-CLIP",
+            "../../FB-CLIP",
+            str(harness_dir.parent / "FB-CLIP"),
+            str(harness_dir.parent.parent / "FB-CLIP"),
+            str(harness_dir.parent.parent.parent / "FB-CLIP"),
+        ]
+        for candidate in candidates:
+            path = _resolve_existing_path(candidate)
+            if (
+                path
+                and (path / "FBCLIP_lib" / "FBCLIP.py").is_file()
+                and (path / "prompt_ensemble.py").is_file()
+            ):
+                return path
+        raise FileNotFoundError(
+            "Could not locate the FB-CLIP source directory. Pass "
+            "fbclip_root=... or set FBCLIP_ROOT to a clone of "
+            "https://github.com/Xi-Mu-Yu/FB-CLIP."
+        )
+
+    def _prepare_imports(self, root: Path) -> None:
+        root_str = str(root)
+        if root_str in sys.path:
+            sys.path.remove(root_str)
+        sys.path.insert(0, root_str)
+        importlib.invalidate_caches()
+        for module_name in list(sys.modules):
+            if (
+                module_name == "FBCLIP_lib"
+                or module_name.startswith("FBCLIP_lib.")
+                or module_name == "prompt_ensemble"
+            ):
+                sys.modules.pop(module_name, None)
+
+    def _find_checkpoint(self, root: Path) -> Path:
+        expected_name = f"{self.weight_dataset}_epoch_"
+        candidates = [
+            self.checkpoint_path,
+            os.environ.get("FBCLIP_CHECKPOINT"),
+        ]
+        checkpoint_root = _resolve_existing_path(self.checkpoint_path)
+        if checkpoint_root and checkpoint_root.is_dir():
+            candidates.extend(
+                str(path)
+                for path in sorted(checkpoint_root.glob(f"{expected_name}*_model.pth"))
+            )
+        candidates.extend(
+            str(path)
+            for path in sorted(root.rglob(f"{expected_name}*_model.pth"))
+        )
+        for candidate in candidates:
+            path = _resolve_existing_path(candidate)
+            if path and path.is_file():
+                if not path.name.startswith(expected_name):
+                    raise ValueError(
+                        "FB-CLIP checkpoint/domain mismatch: weight_dataset="
+                        f"{self.weight_dataset!r}, checkpoint={path.name!r}."
+                    )
+                return path
+        raise FileNotFoundError(
+            "Could not locate the released FB-CLIP checkpoint. Expected a file "
+            f"named {expected_name}*_model.pth; pass checkpoint_path=... or set "
+            "FBCLIP_CHECKPOINT."
+        )
+
+    def _find_clip_weight(self, root: Path) -> Optional[Path]:
+        candidates = [
+            self.clip_weight_path,
+            os.environ.get("FBCLIP_CLIP_WEIGHT"),
+            str(root / "clip" / "ViT-L-14-336px.pt"),
+            str(root / "ViT-L-14-336px.pt"),
+        ]
+        for candidate in candidates:
+            path = _resolve_existing_path(candidate)
+            if path and path.is_file():
+                return path
+        return None
+
+    def _load_checkpoint(self, checkpoint_path: Path) -> Dict[str, Any]:
+        load_kwargs = {"map_location": self.device}
+        try:
+            # The official files contain only tensors and scalar metadata. The
+            # loss is a NumPy scalar, so allowlist NumPy's scalar/dtype types
+            # while retaining PyTorch's restricted weights-only unpickler.
+            numpy_scalar = np.core.multiarray.scalar
+            numpy_dtype_type = type(np.dtype(np.float64))
+            with torch.serialization.safe_globals(
+                [numpy_scalar, np.dtype, numpy_dtype_type]
+            ):
+                checkpoint = torch.load(
+                    checkpoint_path,
+                    weights_only=True,
+                    **load_kwargs,
+                )
+        except (AttributeError, TypeError):
+            # PyTorch < 2.6 does not provide weights_only/safe_globals.
+            checkpoint = torch.load(checkpoint_path, **load_kwargs)
+        if not isinstance(checkpoint, dict):
+            raise TypeError(
+                f"FB-CLIP checkpoint {checkpoint_path} must contain a dict."
+            )
+        required = {"prompt_learner", "model_trainable_params"}
+        missing = required.difference(checkpoint)
+        if missing:
+            raise KeyError(
+                f"FB-CLIP checkpoint {checkpoint_path} is missing keys: "
+                f"{sorted(missing)}."
+            )
+        source_domain = str(checkpoint.get("source_domain", "")).lower().strip()
+        if source_domain and source_domain != self.weight_dataset:
+            raise ValueError(
+                "FB-CLIP checkpoint metadata/domain mismatch: expected "
+                f"{self.weight_dataset!r}, found {source_domain!r}."
+            )
+        return checkpoint
+
+    def _install_checkpoint(
+        self,
+        model: nn.Module,
+        prompt_learner: nn.Module,
+        checkpoint: Dict[str, Any],
+        checkpoint_path: Path,
+    ) -> None:
+        prompt_learner.load_state_dict(checkpoint["prompt_learner"], strict=True)
+        trainable_parameters = checkpoint["model_trainable_params"]
+        if not isinstance(trainable_parameters, dict):
+            raise TypeError(
+                "FB-CLIP model_trainable_params must be a state dictionary, got "
+                f"{type(trainable_parameters).__name__}."
+            )
+        named_parameters = dict(model.named_parameters())
+        missing = sorted(set(trainable_parameters).difference(named_parameters))
+        if missing:
+            raise KeyError(
+                f"FB-CLIP checkpoint {checkpoint_path} contains parameters not "
+                f"present in the model: {missing}."
+            )
+        with torch.no_grad():
+            for name, value in trainable_parameters.items():
+                parameter = named_parameters[name]
+                parameter.copy_(
+                    value.to(device=parameter.device, dtype=parameter.dtype)
+                )
+
+    def forward_raw(
+        self, image: Image.Image, category: str = ""
+    ) -> Tuple[float, np.ndarray]:
+        scores, lowres_maps = self.forward_raw_batch([image], category=category)
+        return float(scores[0]), lowres_maps[0]
+
+    def forward_raw_batch(
+        self, images: Sequence[Image.Image], category: str = ""
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        del category  # FB-CLIP's released prompt learner is class agnostic.
+        if (
+            self.model is None
+            or self.prompt_learner is None
+            or self.preprocess is None
+            or self._args is None
+        ):
+            raise RuntimeError("FB-CLIP model is not loaded. Call load_model() first.")
+        if not images:
+            return (
+                np.zeros((0,), dtype=np.float32),
+                np.zeros((0, 0, 0), dtype=np.float32),
+            )
+        if not all(isinstance(image, Image.Image) for image in images):
+            raise TypeError("FBCLIPWrapper.forward_raw_batch expects PIL images.")
+
+        image_tensor = torch.stack(
+            [self.preprocess(image.convert("RGB")) for image in images]
+        ).to(self.device, non_blocking=True)
+        with torch.inference_mode():
+            prompts, tokenized_prompts, compound_prompts_text = (
+                self.prompt_learner(cls_id=None)
+            )
+            scores, anomaly_maps, _ = self.model.FB_encode(
+                image_tensor,
+                args=self._args,
+                prompts=prompts,
+                tokenized_prompts=tokenized_prompts,
+                compound_prompts_text=compound_prompts_text,
+            )
+        if anomaly_maps.ndim != 4 or anomaly_maps.shape[1] != 1:
+            raise ValueError(
+                "FB-CLIP anomaly maps should have shape [B, 1, H, W], got "
+                f"{tuple(anomaly_maps.shape)}."
+            )
+        if scores.ndim != 1 or scores.shape[0] != len(images):
+            raise ValueError(
+                "FB-CLIP image scores should have shape [B], got "
+                f"{tuple(scores.shape)}."
+            )
+        return (
+            scores.detach().cpu().numpy().astype(np.float32),
+            anomaly_maps[:, 0].detach().cpu().numpy().astype(np.float32),
+        )
+
+    def prepare_metric_map(self, anomaly_map: np.ndarray) -> np.ndarray:
+        metric_map = super().prepare_metric_map(anomaly_map)
+        if self.use_gaussian_filter and self.sigma > 0:
+            from scipy.ndimage import gaussian_filter
+
+            metric_map = gaussian_filter(metric_map, sigma=self.sigma)
+        return np.asarray(metric_map, dtype=np.float32)
+
+    def inference_provenance(self) -> Dict[str, Any]:
+        return {
+            "model": self.model_name,
+            "implementation": "Xi-Mu-Yu/FB-CLIP",
+            "checkpoint": str(self._resolved_checkpoint or self.checkpoint_path),
+            "dataset": self.dataset_name,
+            "weight_dataset": self.weight_dataset,
+            "clip_weight": str(
+                self._resolved_clip_weight or self.clip_weight_path or "automatic"
+            ),
+            "clip_model": self.clip_model_name,
+            "image_size": self.image_size,
+            "depth": self.depth,
+            "n_ctx": self.n_ctx,
+            "t_n_ctx": self.t_n_ctx,
+            "feature_map_layer": self.feature_map_layer,
+            "features_list": self.features_list,
+            "feature_layers": self.feature_layers,
+            "gaussian_sigma": self.sigma if self.use_gaussian_filter else None,
+        }
+
+    def release(self) -> None:
+        if self.prompt_learner is not None:
+            del self.prompt_learner
+            self.prompt_learner = None
+        self.preprocess = None
+        self._args = None
+        super().release()
+
+
 class CoPSWrapper(BaseModelWrapper):
     """Wrapper for CoPS model."""
 
@@ -1832,7 +2646,9 @@ MODEL_REGISTRY: Dict[str, type] = {
     "AA-CLIP": AACLIPWrapper,
     "Bayes-PFL": BayesPFLWrapper,
     "FiLo": FiLoWrapper,
+    "Tipsomaly": TipsomalyWrapper,
     "AF-CLIP": AFCLIPWrapper,
+    "FB-CLIP": FBCLIPWrapper,
     "CoPS": CoPSWrapper,
     "WinCLIP": WinCLIPWrapper,
     "AnoVL": AnoVLWrapper,
