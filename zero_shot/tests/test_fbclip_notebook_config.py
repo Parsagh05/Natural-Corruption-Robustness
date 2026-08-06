@@ -1,6 +1,7 @@
 import json
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import numpy as np
 import torch
@@ -90,6 +91,44 @@ class FBCLIPRegistryTest(unittest.TestCase):
             FBCLIPWrapper(
                 dataset_name="mvtec", weight_dataset="mvtec"
             )._cross_dataset_weight_name()
+
+    def test_checkpoint_loader_allowlists_numpy_legacy_global_path(self):
+        wrapper = FBCLIPWrapper(
+            device="cpu", dataset_name="visa", weight_dataset="mvtec"
+        )
+        checkpoint = {
+            "prompt_learner": {},
+            "model_trainable_params": {},
+            "source_domain": "mvtec",
+        }
+
+        class CaptureSafeGlobals:
+            def __init__(self):
+                self.values = None
+
+            def __call__(self, values):
+                self.values = values
+                return mock.MagicMock(
+                    __enter__=mock.Mock(return_value=None),
+                    __exit__=mock.Mock(return_value=False),
+                )
+
+        capture = CaptureSafeGlobals()
+        with mock.patch.object(
+            torch.serialization, "safe_globals", new=capture
+        ), mock.patch.object(torch, "load", return_value=checkpoint) as loader:
+            loaded = wrapper._load_checkpoint(Path("checkpoint.pth"))
+
+        self.assertIs(loaded, checkpoint)
+        self.assertIn(
+            (np.core.multiarray.scalar, "numpy.core.multiarray.scalar"),
+            capture.values,
+        )
+        loader.assert_called_once_with(
+            Path("checkpoint.pth"),
+            weights_only=True,
+            map_location="cpu",
+        )
 
     def test_forward_matches_official_fb_encode_outputs(self):
         class StubPromptLearner:

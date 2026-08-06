@@ -2403,7 +2403,16 @@ class FBCLIPWrapper(BaseModelWrapper):
             numpy_scalar = np.core.multiarray.scalar
             numpy_dtype_type = type(np.dtype(np.float64))
             with torch.serialization.safe_globals(
-                [numpy_scalar, np.dtype, numpy_dtype_type]
+                [
+                    # NumPy 2 exposes this callable from ``numpy._core``, but
+                    # the released checkpoint was serialized with NumPy 1 and
+                    # records the legacy ``numpy.core`` global path. Register
+                    # that exact path so PyTorch 2.6+ can load it safely on
+                    # current Kaggle images.
+                    (numpy_scalar, "numpy.core.multiarray.scalar"),
+                    (np.dtype, "numpy.dtype"),
+                    numpy_dtype_type,
+                ]
             ):
                 checkpoint = torch.load(
                     checkpoint_path,
@@ -2411,7 +2420,8 @@ class FBCLIPWrapper(BaseModelWrapper):
                     **load_kwargs,
                 )
         except (AttributeError, TypeError):
-            # PyTorch < 2.6 does not provide weights_only/safe_globals.
+            # Older PyTorch releases do not provide weights_only/safe_globals;
+            # their torch.load default is the historical unrestricted loader.
             checkpoint = torch.load(checkpoint_path, **load_kwargs)
         if not isinstance(checkpoint, dict):
             raise TypeError(
