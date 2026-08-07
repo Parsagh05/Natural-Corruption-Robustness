@@ -7,6 +7,8 @@ The JSON merge is deliberately conservative:
 * logical duplicate records must be exactly equal;
 * conflicting duplicate identities abort the merge;
 * the merged file is validated before atomically replacing its destination;
+* an existing canonical JSON participates as the first merge input;
+* numbered parts may use either ``PER_IMAGE1.json`` or ``PER_IMAGE_1.json``;
 * source part files are never modified or removed.
 
 CSV normalization delegates to ``normalize_result_csvs.py``, which preserves
@@ -36,7 +38,7 @@ from zero_shot.scripts.normalize_result_csvs import (  # noqa: E402
 
 
 SPLIT_JSON_PATTERN = re.compile(
-    r"^(?P<base>.+_FINE_GRAINED_PER_IMAGE)(?P<part>\d+)\.json$"
+    r"^(?P<base>.+_FINE_GRAINED_PER_IMAGE)_?(?P<part>\d+)\.json$"
 )
 REQUIRED_DOCUMENT_FIELDS = (
     "model",
@@ -92,12 +94,18 @@ def discover_split_json_groups(
                 )
             parts[part_number] = candidate.resolve()
 
-    return {
-        output: [numbered[number] for number in sorted(numbered)]
-        for output, numbered in sorted(
-            grouped.items(), key=lambda item: str(item[0]).casefold()
-        )
-    }
+    groups = {}
+    for output, numbered in sorted(
+        grouped.items(), key=lambda item: str(item[0]).casefold()
+    ):
+        part_paths = [numbered[number] for number in sorted(numbered)]
+        # Kaggle downloads often leave the first result segment at the
+        # canonical name and suffix only later segments. Treat the canonical
+        # document as part zero so merging never discards its records.
+        if output.is_file():
+            part_paths.insert(0, output)
+        groups[output] = part_paths
+    return groups
 
 
 def _load_json_document(path: Path) -> Dict[str, Any]:
@@ -238,7 +246,8 @@ def merge_json_parts(
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
-            "Merge numbered *_FINE_GRAINED_PER_IMAGE<N>.json files and "
+            "Merge canonical and numbered *_FINE_GRAINED_PER_IMAGE[_]<N>.json "
+            "files and "
             "normalize all result CSV row ordering. JSON source parts and "
             "all CSV cell values are preserved."
         )
