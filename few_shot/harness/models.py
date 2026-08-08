@@ -6,6 +6,7 @@ can be added with :func:`register_model` without changing the runner.
 """
 
 from functools import partial
+import csv
 import hashlib
 import importlib
 import json
@@ -21,11 +22,13 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from zero_shot.harness.models import BaseModelWrapper
+from zero_shot.harness.models import APRILGANWrapper, BaseModelWrapper
 
 
 OFFICIAL_INPFORMER_COMMIT = "17d265381d9b323a2ef6e05aab0665a85edebe84"
 OFFICIAL_PROMPTAD_COMMIT = "0f86ce0dc1ed59007d51348d8d566aed31360cf9"
+OFFICIAL_AFCLIP_COMMIT = "bb7edec4128a76f29cb573cd3002538bf250b2fe"
+OFFICIAL_APRILGAN_COMMIT = APRILGANWrapper.OFFICIAL_SOURCE_COMMIT
 OFFICIAL_CHECKPOINT_URLS: Dict[int, Dict[str, str]] = {
     1: {
         "mvtec": "https://drive.google.com/file/d/1ymAywov3JFFVzwDpcdt9Tj_iFv-mk32c/view?usp=sharing",
@@ -59,6 +62,18 @@ PROMPTAD_DATASET_CATEGORIES: Dict[str, Tuple[str, ...]] = {
         "macaroni1", "macaroni2", "pcb1", "pcb2", "pcb3", "pcb4",
         "pipe_fryum",
     ),
+}
+
+# Preserve the category order in the released AF-CLIP datasets.  Its random
+# support sampler advances one NumPy RNG across classes, so the order is part
+# of a reproducible few-shot support selection.
+AFCLIP_DATASET_CATEGORIES: Dict[str, Tuple[str, ...]] = {
+    "mvtec": (
+        "carpet", "grid", "leather", "tile", "wood", "bottle", "cable",
+        "capsule", "hazelnut", "metal_nut", "pill", "screw", "toothbrush",
+        "transistor", "zipper",
+    ),
+    "visa": PROMPTAD_DATASET_CATEGORIES["visa"],
 }
 
 
@@ -274,6 +289,68 @@ def discover_promptad_checkpoints(
         raise FileNotFoundError(
             "The PromptAD indexes contained no entries for the selected shots "
             f"and datasets: shots={selected_shots}, datasets={selected_datasets}."
+        )
+    return resolved
+
+
+def discover_afclip_checkpoints(
+    checkpoint_root: str,
+) -> Dict[str, Dict[str, str]]:
+    """Locate the four released AF-CLIP prompt/adaptor files.
+
+    The official repository checks these small trained components into its
+    ``weight`` directory.  AF-CLIP+ does not train another checkpoint: target
+    normal images populate an in-memory nearest-neighbour gallery at runtime.
+    """
+    root = Path(checkpoint_root).expanduser()
+    if not root.is_dir():
+        raise FileNotFoundError(f"AF-CLIP checkpoint root does not exist: {root}")
+
+    resolved: Dict[str, Dict[str, str]] = {}
+    missing = []
+    for source_dataset in ("mvtec", "visa"):
+        resolved[source_dataset] = {}
+        for component in ("prompt", "adaptor"):
+            filename = f"{source_dataset}_{component}.pt"
+            candidates = sorted(path for path in root.rglob(filename) if path.is_file())
+            if len(candidates) == 1:
+                resolved[source_dataset][component] = str(candidates[0].resolve())
+            elif len(candidates) > 1:
+                raise RuntimeError(
+                    f"Multiple AF-CLIP files named {filename} found: {candidates}"
+                )
+            else:
+                missing.append(filename)
+    if missing:
+        raise FileNotFoundError(
+            "The released AF-CLIP checkpoint suite is incomplete. Missing: "
+            + ", ".join(missing)
+        )
+    return resolved
+
+
+def discover_aprilgan_checkpoints(checkpoint_root: str) -> Dict[str, str]:
+    """Locate APRIL-GAN's two released cross-dataset linear-layer weights."""
+    root = Path(checkpoint_root).expanduser()
+    if not root.is_dir():
+        raise FileNotFoundError(f"APRIL-GAN checkpoint root does not exist: {root}")
+    resolved: Dict[str, str] = {}
+    missing = []
+    for source_dataset in ("mvtec", "visa"):
+        filename = f"{source_dataset}_pretrained.pth"
+        candidates = sorted(path for path in root.rglob(filename) if path.is_file())
+        if len(candidates) == 1:
+            resolved[source_dataset] = str(candidates[0].resolve())
+        elif len(candidates) > 1:
+            raise RuntimeError(
+                f"Multiple APRIL-GAN files named {filename} found: {candidates}"
+            )
+        else:
+            missing.append(filename)
+    if missing:
+        raise FileNotFoundError(
+            "The released APRIL-GAN checkpoint suite is incomplete. Missing: "
+            + ", ".join(missing)
         )
     return resolved
 
@@ -1081,6 +1158,664 @@ class PromptADWrapper(BaseModelWrapper):
         super().release()
 
 
+class APRILGANFewShotWrapper(APRILGANWrapper):
+    """Official APRIL-GAN few-shot memory-bank inference.
+
+    The released cross-dataset linear projections remain unchanged. Clean
+    normal target images populate one patch-feature memory bank per category;
+    nearest-neighbour distance maps are added to the zero-shot map. Image
+    scores follow ``test.py`` and average the text score with a class/condition
+    min-max-normalized maximum of the combined anomaly map.
+    """
+
+    condition_postprocessing = True
+
+    def __init__(
+        self,
+        dataset_roots: Optional[Mapping[str, str]] = None,
+        shot: int = 1,
+        reference_seed: int = 42,
+        few_shot_features: Optional[Sequence[int]] = None,
+        result_name: Optional[str] = None,
+        **kwargs: Any,
+    ) -> None:
+        if shot not in (1, 2, 4):
+            raise ValueError(
+                "APRIL-GAN few-shot evaluation supports the benchmark's "
+                "1-, 2-, and 4-shot settings."
+            )
+        super().__init__(
+            result_name=result_name or f"APRIL-GAN-{shot}-shot",
+            **kwargs,
+        )
+        self.dataset_roots = {
+            self._normalize_dataset_name(dataset): str(path)
+            for dataset, path in (dataset_roots or {}).items()
+        }
+        self.shot = int(shot)
+        self.reference_seed = int(reference_seed)
+        self.few_shot_features = list(
+            self.OFFICIAL_FEATURES
+            if few_shot_features is None
+            else (
+                (few_shot_features,)
+                if isinstance(few_shot_features, int)
+                else tuple(few_shot_features)
+            )
+        )
+        self.support_paths: Dict[str, Tuple[Path, ...]] = {}
+        self.active_category: Optional[str] = None
+        self.memory_features: Sequence[torch.Tensor] = ()
+
+    @staticmethod
+    def _resolve_visa_image(root: Path, raw_path: str) -> Path:
+        path = Path(raw_path.replace("\\", "/"))
+        candidates = [path] if path.is_absolute() else [root / path]
+        if not path.is_absolute() and path.parts and path.parts[0].lower() == "visa":
+            candidates.append(root.joinpath(*path.parts[1:]))
+        for candidate in candidates:
+            if candidate.is_file():
+                return candidate.resolve()
+        raise FileNotFoundError(f"VisA support image does not exist: {raw_path}")
+
+    def _normal_training_paths(
+        self, dataset: str, category: str
+    ) -> Tuple[Path, ...]:
+        root_value = self.dataset_roots.get(dataset)
+        if not root_value:
+            raise FileNotFoundError(
+                f"No target root configured for APRIL-GAN few-shot dataset {dataset!r}."
+            )
+        root = Path(root_value).expanduser()
+        if dataset == "mvtec":
+            normal_root = root / category / "train" / "good"
+            paths = (
+                sorted(
+                    path.resolve()
+                    for path in normal_root.iterdir()
+                    if path.is_file()
+                    and path.suffix.lower() in {".png", ".jpg", ".jpeg", ".bmp"}
+                )
+                if normal_root.is_dir()
+                else []
+            )
+        else:
+            split_path = next(
+                (
+                    path
+                    for path in (
+                        root / "split_csv" / "1cls.csv",
+                        root / "split_csv" / "test.csv",
+                    )
+                    if path.is_file()
+                ),
+                None,
+            )
+            if split_path is None:
+                raise FileNotFoundError(
+                    f"APRIL-GAN few-shot requires VisA split_csv/1cls.csv below {root}."
+                )
+            paths = []
+            with split_path.open("r", encoding="utf-8-sig", newline="") as file_obj:
+                reader = csv.reader(file_obj)
+                header = next(reader, None)
+                if header is None or len(header) < 4:
+                    raise ValueError(f"Malformed VisA split CSV: {split_path}")
+                for row in reader:
+                    if len(row) < 4 or row[0] != category or row[1].lower() != "train":
+                        continue
+                    if row[2].strip().lower() not in {"normal", "good", "0", "false"}:
+                        continue
+                    paths.append(self._resolve_visa_image(root, row[3]))
+        if not paths:
+            raise ValueError(
+                f"APRIL-GAN found no normal training images for {dataset}/{category}."
+            )
+        return tuple(paths)
+
+    def _select_support_paths(self, dataset: str) -> Dict[str, Tuple[Path, ...]]:
+        # This deliberately samples with replacement. It reproduces the
+        # released dataset.py call to torch.randint rather than silently
+        # changing the official support policy.
+        generator = torch.Generator(device="cpu")
+        generator.manual_seed(self.reference_seed)
+        selected: Dict[str, Tuple[Path, ...]] = {}
+        for category in AFCLIP_DATASET_CATEGORIES[dataset]:
+            candidates = self._normal_training_paths(dataset, category)
+            indices = torch.randint(
+                0,
+                len(candidates),
+                (self.shot,),
+                generator=generator,
+            ).tolist()
+            selected[category] = tuple(candidates[index] for index in indices)
+        return selected
+
+    def load_model(self) -> None:
+        if tuple(self.few_shot_features) != self.OFFICIAL_FEATURES:
+            raise ValueError(
+                "Official APRIL-GAN few-shot inference requires few_shot_features="
+                f"{list(self.OFFICIAL_FEATURES)}, got {self.few_shot_features}."
+            )
+        super().load_model()
+
+    def prepare_for_dataset(self, dataset_name: str) -> None:
+        super().prepare_for_dataset(dataset_name)
+        if self.active_target_dataset is None:
+            raise RuntimeError("APRIL-GAN target dataset was not activated.")
+        self.support_paths = self._select_support_paths(self.active_target_dataset)
+        self.active_category = None
+        self.memory_features = ()
+
+    def _prepare_memory(self, category: str) -> None:
+        if category == self.active_category and self.memory_features:
+            return
+        if category not in self.support_paths:
+            raise KeyError(
+                f"No APRIL-GAN support selection for "
+                f"{self.active_target_dataset}/{category}."
+            )
+        support_images = []
+        for path in self.support_paths[category]:
+            with Image.open(path) as image:
+                support_images.append(image.convert("RGB").copy())
+        support_tensor = self._preprocess_batch(support_images)
+        with torch.inference_mode(), torch.autocast(
+            device_type="cuda", enabled=str(self.device).startswith("cuda")
+        ):
+            _, patch_tokens = self.model.encode_image(
+                support_tensor, self.few_shot_features
+            )
+            memory_features = []
+            for tokens in patch_tokens:
+                tokens = tokens[:, 1:, :].reshape(-1, tokens.shape[-1])
+                memory_features.append(F.normalize(tokens, dim=-1))
+        self.memory_features = tuple(memory_features)
+        self.active_category = category
+
+    def forward_raw_batch(
+        self, images: Sequence[Image.Image], category: str = ""
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        if self.active_checkpoint is None:
+            raise RuntimeError("prepare_for_dataset() must run before APRIL-GAN inference.")
+        if not category:
+            raise ValueError("APRIL-GAN few-shot inference requires a category name.")
+        self._prepare_memory(category)
+        image_tensor = self._preprocess_batch(images)
+        if image_tensor.shape[0] == 0:
+            return (
+                np.zeros((0,), dtype=np.float32),
+                np.zeros((0, self.image_size, self.image_size), dtype=np.float32),
+            )
+        with torch.inference_mode(), torch.autocast(
+            device_type="cuda", enabled=str(self.device).startswith("cuda")
+        ):
+            image_scores, anomaly_map = self._zero_shot_forward_tensor(
+                image_tensor, category
+            )
+            _, patch_tokens = self.model.encode_image(
+                image_tensor, self.few_shot_features
+            )
+            for tokens, memory in zip(patch_tokens, self.memory_features):
+                tokens = F.normalize(tokens[:, 1:, :], dim=-1)
+                # The released code uses sklearn cosine similarity and takes
+                # min(1 - similarity) over every support patch.
+                nearest_distance = 1.0 - torch.matmul(
+                    tokens, memory.transpose(0, 1)
+                ).amax(dim=-1)
+                side = int(round(math.sqrt(nearest_distance.shape[1])))
+                if side * side != nearest_distance.shape[1]:
+                    raise ValueError(
+                        "APRIL-GAN few-shot patch count is not square: "
+                        f"{nearest_distance.shape[1]}."
+                    )
+                distance_map = nearest_distance.reshape(-1, 1, side, side)
+                anomaly_map = anomaly_map + F.interpolate(
+                    distance_map,
+                    size=(self.image_size, self.image_size),
+                    mode="bilinear",
+                    align_corners=True,
+                )[:, 0]
+        return (
+            image_scores.float().cpu().numpy().astype(np.float32),
+            anomaly_map.float().cpu().numpy().astype(np.float32),
+        )
+
+    def postprocess_condition_outputs(
+        self,
+        scores: np.ndarray,
+        anomaly_maps: Sequence[np.ndarray],
+    ) -> Tuple[np.ndarray, Sequence[np.ndarray]]:
+        scores_array = np.asarray(scores, dtype=np.float32)
+        map_peaks = np.asarray(
+            [np.asarray(anomaly_map).max() for anomaly_map in anomaly_maps],
+            dtype=np.float32,
+        )
+        value_range = float(map_peaks.max() - map_peaks.min())
+        if value_range > np.finfo(np.float32).eps:
+            normalized_peaks = (map_peaks - map_peaks.min()) / value_range
+        else:
+            normalized_peaks = np.zeros_like(map_peaks)
+        return 0.5 * (scores_array + normalized_peaks), anomaly_maps
+
+    def inference_provenance(self) -> Dict[str, Any]:
+        provenance = super().inference_provenance()
+        provenance.update(
+            {
+                "result_name": self.model_name,
+                "shot": self.shot,
+                "reference_seed": self.reference_seed,
+                "few_shot_feature_layers": self.few_shot_features,
+                "support_sampling": "torch.randint with replacement",
+                "support_images": {
+                    category: [str(path) for path in paths]
+                    for category, paths in self.support_paths.items()
+                },
+                "memory_distance": "minimum cosine distance over support patches",
+                "few_shot_map_fusion": "zero-shot map + four memory-distance maps",
+                "few_shot_image_score": (
+                    "0.5 * (text score + class/condition-normalized map maximum)"
+                ),
+            }
+        )
+        return provenance
+
+    def release(self) -> None:
+        self.support_paths = {}
+        self.active_category = None
+        self.memory_features = ()
+        super().release()
+
+
+class AFCLIPFewShotWrapper(BaseModelWrapper):
+    """Official AF-CLIP+ inference with target-normal memory banks.
+
+    The released MVTec/VisA prompt and adaptor weights remain zero-shot and
+    cross-dataset.  For each target class, AF-CLIP+ samples ``shot`` clean
+    training images, stores their multi-level spatially aggregated patch
+    features, and adds the nearest-neighbour score to 0.1 times AF-CLIP's
+    learned prompt score.  No few-shot optimization is performed.
+    """
+
+    OFFICIAL_MODEL = "ViT-L/14@336px"
+    OFFICIAL_INPUT_SIZE = 518
+    OFFICIAL_PROMPT_LENGTH = 12
+    OFFICIAL_FEATURE_LAYERS = (6, 12, 18, 24)
+    OFFICIAL_MEMORY_LAYERS = (6, 12, 18, 24)
+    OFFICIAL_ALPHA = 0.1
+    OFFICIAL_GAUSSIAN_SIGMA = 4.0
+    fail_on_inference_error = True
+
+    def __init__(
+        self,
+        afclip_root: str = "",
+        checkpoint_paths: Optional[Mapping[str, Mapping[str, str]]] = None,
+        dataset_roots: Optional[Mapping[str, str]] = None,
+        shot: int = 1,
+        reference_seed: int = 111,
+        result_name: Optional[str] = None,
+        clip_download_dir: str = "",
+        strict_source_commit: bool = True,
+        **kwargs: Any,
+    ) -> None:
+        if shot not in (1, 2, 4):
+            raise ValueError("AF-CLIP+ supports the official 1-, 2-, and 4-shot settings.")
+        super().__init__(result_name or f"AF-CLIP+-{shot}-shot", **kwargs)
+        self.afclip_root = afclip_root
+        self.checkpoint_paths = {
+            normalize_dataset_name(dataset): {
+                str(component).lower(): str(path)
+                for component, path in components.items()
+            }
+            for dataset, components in (checkpoint_paths or {}).items()
+        }
+        self.dataset_roots = {
+            normalize_dataset_name(dataset): str(path)
+            for dataset, path in (dataset_roots or {}).items()
+        }
+        self.shot = shot
+        self.reference_seed = int(reference_seed)
+        self.clip_download_dir = clip_download_dir
+        self.strict_source_commit = strict_source_commit
+        self.source_root: Optional[Path] = None
+        self.source_commit: Optional[str] = None
+        self.active_dataset: Optional[str] = None
+        self.active_source_dataset: Optional[str] = None
+        self.active_checkpoints: Dict[str, Path] = {}
+        self.active_category: Optional[str] = None
+        self.support_paths: Dict[str, Tuple[Path, ...]] = {}
+        self._clip_tokenize = None
+        self._args = None
+        self._normalization_mean = torch.tensor(
+            [0.48145466, 0.4578275, 0.40821073], dtype=torch.float32
+        )[:, None, None]
+        self._normalization_std = torch.tensor(
+            [0.26862954, 0.26130258, 0.27577711], dtype=torch.float32
+        )[:, None, None]
+
+    def _find_source_root(self) -> Path:
+        harness_dir = Path(__file__).resolve().parent
+        candidates = [
+            self.afclip_root,
+            os.environ.get("AFCLIP_ROOT"),
+            self.kwargs.get("model_root"),
+            "AF-CLIP",
+            "../AF-CLIP",
+            str(harness_dir.parent / "AF-CLIP"),
+            str(harness_dir.parent.parent / "AF-CLIP"),
+        ]
+        for candidate in candidates:
+            if not candidate:
+                continue
+            path = Path(str(candidate)).expanduser()
+            if (
+                (path / "clip" / "clip.py").is_file()
+                and (path / "clip" / "model.py").is_file()
+            ):
+                return path.resolve()
+        raise FileNotFoundError(
+            "Could not locate the official AF-CLIP source. Pass afclip_root=... "
+            "or set AFCLIP_ROOT to a clone of Faustinaqq/AF-CLIP."
+        )
+
+    @staticmethod
+    def _prepare_imports(root: Path) -> None:
+        root_string = str(root)
+        if root_string in sys.path:
+            sys.path.remove(root_string)
+        sys.path.insert(0, root_string)
+        importlib.invalidate_caches()
+        # AF-CLIP vendors a modified top-level package named ``clip``.  Evict
+        # any OpenAI/OpenCLIP module imported by another wrapper first.
+        for module_name in list(sys.modules):
+            if module_name == "clip" or module_name.startswith("clip."):
+                sys.modules.pop(module_name, None)
+
+    def _preprocess_image(self, image: Image.Image) -> torch.Tensor:
+        resized = image.convert("RGB").resize(
+            (self.OFFICIAL_INPUT_SIZE, self.OFFICIAL_INPUT_SIZE),
+            resample=Image.Resampling.BICUBIC,
+        )
+        pixels = np.asarray(resized, dtype=np.float32) / 255.0
+        tensor = torch.from_numpy(pixels).permute(2, 0, 1)
+        return (tensor - self._normalization_mean) / self._normalization_std
+
+    def load_model(self) -> None:
+        root = self._find_source_root()
+        self._prepare_imports(root)
+        clip_module = importlib.import_module("clip.clip")
+        download_root = self.clip_download_dir or str(root / "download" / "clip")
+        self.model, _ = clip_module.load(
+            name=self.OFFICIAL_MODEL,
+            jit=False,
+            device=self.device,
+            download_root=download_root,
+        )
+        self._args = type("AFCLIPArgs", (), {
+            "prompt_len": self.OFFICIAL_PROMPT_LENGTH,
+            "feature_layers": list(self.OFFICIAL_FEATURE_LAYERS),
+            "memory_layers": list(self.OFFICIAL_MEMORY_LAYERS),
+            "alpha": self.OFFICIAL_ALPHA,
+        })()
+        self.model.insert(
+            args=self._args,
+            tokenizer=clip_module.tokenize,
+            device=self.device,
+        )
+        self.model.eval()
+        for parameter in self.model.parameters():
+            parameter.requires_grad_(False)
+        self.source_root = root
+        self.source_commit = _resolve_git_commit(root)
+        if self.strict_source_commit and self.source_commit != OFFICIAL_AFCLIP_COMMIT:
+            raise RuntimeError(
+                "Official AF-CLIP source commit mismatch: expected "
+                f"{OFFICIAL_AFCLIP_COMMIT}, found {self.source_commit}."
+            )
+
+    @staticmethod
+    def _torch_load_trusted(path: Path, map_location: str = "cpu") -> Any:
+        # The official adaptor is serialized as a Python nn.Module, not a raw
+        # state dict.  Only load files discovered from the pinned repository.
+        try:
+            return torch.load(path, map_location=map_location, weights_only=False)
+        except TypeError:
+            return torch.load(path, map_location=map_location)
+
+    @staticmethod
+    def _resolve_visa_image(root: Path, raw_path: str) -> Path:
+        path = Path(raw_path.replace("\\", "/"))
+        candidates = [path] if path.is_absolute() else [root / path]
+        if not path.is_absolute() and path.parts and path.parts[0].lower() == "visa":
+            candidates.append(root.joinpath(*path.parts[1:]))
+        for candidate in candidates:
+            if candidate.is_file():
+                return candidate.resolve()
+        raise FileNotFoundError(f"VisA support image does not exist: {raw_path}")
+
+    def _normal_training_paths(self, dataset: str, category: str) -> Tuple[Path, ...]:
+        if dataset not in self.dataset_roots:
+            raise FileNotFoundError(
+                f"No target root configured for AF-CLIP+ dataset {dataset!r}."
+            )
+        root = Path(self.dataset_roots[dataset]).expanduser()
+        if dataset == "mvtec":
+            normal_root = root / category / "train" / "good"
+            paths = sorted(
+                path.resolve() for path in normal_root.iterdir()
+                if path.is_file() and path.suffix.lower() in {".png", ".jpg", ".jpeg", ".bmp"}
+            ) if normal_root.is_dir() else []
+        else:
+            split_candidates = (
+                root / "split_csv" / "1cls.csv",
+                root / "split_csv" / "test.csv",
+            )
+            split_path = next((path for path in split_candidates if path.is_file()), None)
+            if split_path is None:
+                raise FileNotFoundError(
+                    f"AF-CLIP+ requires VisA's split_csv/1cls.csv below {root}."
+                )
+            paths = []
+            with split_path.open("r", encoding="utf-8-sig", newline="") as file_obj:
+                reader = csv.reader(file_obj)
+                header = next(reader, None)
+                if header is None or len(header) < 4:
+                    raise ValueError(f"Malformed VisA split CSV: {split_path}")
+                for row in reader:
+                    if len(row) < 4 or row[0] != category or row[1].lower() != "train":
+                        continue
+                    if row[2].strip().lower() not in {"normal", "good", "0", "false"}:
+                        continue
+                    paths.append(self._resolve_visa_image(root, row[3]))
+            paths = sorted(set(paths))
+        if len(paths) < self.shot:
+            raise ValueError(
+                f"AF-CLIP+ needs {self.shot} normal training images for "
+                f"{dataset}/{category}, found {len(paths)}."
+            )
+        return tuple(paths)
+
+    def _select_support_paths(self, dataset: str) -> Dict[str, Tuple[Path, ...]]:
+        rng = np.random.RandomState(self.reference_seed)
+        selected: Dict[str, Tuple[Path, ...]] = {}
+        for category in AFCLIP_DATASET_CATEGORIES[dataset]:
+            candidates = self._normal_training_paths(dataset, category)
+            indices = rng.choice(len(candidates), size=self.shot, replace=False)
+            selected[category] = tuple(candidates[int(index)] for index in indices)
+        return selected
+
+    def prepare_for_dataset(self, dataset_name: str) -> None:
+        if self.model is None:
+            raise RuntimeError("load_model() must be called before selecting AF-CLIP weights.")
+        target_dataset = normalize_dataset_name(dataset_name)
+        source_dataset = "visa" if target_dataset == "mvtec" else "mvtec"
+        components = self.checkpoint_paths.get(source_dataset, {})
+        if set(components) != {"prompt", "adaptor"}:
+            raise FileNotFoundError(
+                f"AF-CLIP+ target {target_dataset} needs the released "
+                f"{source_dataset} prompt and adaptor weights."
+            )
+        paths = {name: Path(path).expanduser().resolve() for name, path in components.items()}
+        missing = [str(path) for path in paths.values() if not path.is_file()]
+        if missing:
+            raise FileNotFoundError("Missing AF-CLIP checkpoint files: " + ", ".join(missing))
+
+        prompt_object = self._torch_load_trusted(paths["prompt"])
+        prompt = prompt_object
+        if isinstance(prompt, Mapping):
+            prompt = next(
+                (
+                    prompt[key]
+                    for key in ("state_prompt_embedding", "prompt", "weight")
+                    if key in prompt
+                ),
+                prompt,
+            )
+        if not isinstance(prompt, torch.Tensor):
+            raise TypeError(f"AF-CLIP prompt checkpoint must be a tensor: {paths['prompt']}")
+        expected_prompt_shape = tuple(self.model.state_prompt_embedding.shape)
+        if tuple(prompt.shape) != expected_prompt_shape:
+            raise ValueError(
+                f"AF-CLIP prompt shape mismatch: expected {expected_prompt_shape}, "
+                f"got {tuple(prompt.shape)} from {paths['prompt']}."
+            )
+        prompt = nn.Parameter(
+            prompt.detach().to(
+                device=self.device,
+                dtype=self.model.token_embedding.weight.dtype,
+            ),
+            requires_grad=False,
+        )
+        adaptor_object = self._torch_load_trusted(paths["adaptor"])
+        if isinstance(adaptor_object, nn.Module):
+            adaptor = adaptor_object
+        else:
+            state_dict = adaptor_object
+            if isinstance(state_dict, Mapping):
+                for key in ("adaptor", "state_dict"):
+                    if isinstance(state_dict.get(key), Mapping):
+                        state_dict = state_dict[key]
+                        break
+            if not isinstance(state_dict, Mapping):
+                raise TypeError(
+                    "AF-CLIP adaptor checkpoint must contain an nn.Module or "
+                    f"state dict: {paths['adaptor']}"
+                )
+            adaptor = self.model.adaptor
+            adaptor.load_state_dict(state_dict, strict=True)
+        self.model.state_prompt_embedding = prompt
+        self.model.adaptor = adaptor.to(self.device).eval()
+        for parameter in self.model.adaptor.parameters():
+            parameter.requires_grad_(False)
+        self.model.memorybank = None
+
+        self.active_dataset = target_dataset
+        self.active_source_dataset = source_dataset
+        self.active_checkpoints = paths
+        self.active_category = None
+        self.support_paths = self._select_support_paths(target_dataset)
+
+    def _prepare_for_category(self, category: str) -> None:
+        if self.model is None or self.active_dataset is None or self._args is None:
+            raise RuntimeError("AF-CLIP+ requires prepare_for_dataset() before inference.")
+        if category == self.active_category and self.model.memorybank is not None:
+            return
+        if category not in self.support_paths:
+            raise KeyError(f"No AF-CLIP+ support selection for {self.active_dataset}/{category}.")
+        support_images = []
+        for path in self.support_paths[category]:
+            with Image.open(path) as image:
+                support_images.append(self._preprocess_image(image.copy()))
+        support_tensor = torch.stack(support_images).to(self.device)
+        with torch.no_grad():
+            self.model.store_memory(support_tensor, self._args)
+        self.active_category = category
+
+    def forward_raw(
+        self, image: Image.Image, category: str = ""
+    ) -> Tuple[float, np.ndarray]:
+        scores, maps = self.forward_raw_batch([image], category=category)
+        return float(scores[0]), maps[0]
+
+    def forward_raw_batch(
+        self, images: Sequence[Image.Image], category: str = ""
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        if not category:
+            raise ValueError("AF-CLIP+ inference requires a category name.")
+        self._prepare_for_category(category)
+        image_tensor = torch.stack([self._preprocess_image(image) for image in images]).to(self.device)
+        with torch.no_grad():
+            scores, maps = self.model.detect_forward(image_tensor, self._args)
+        return (
+            scores.detach().cpu().numpy().astype(np.float32),
+            maps[:, 0].detach().cpu().numpy().astype(np.float32),
+        )
+
+    def prepare_metric_map(self, anomaly_map: np.ndarray) -> np.ndarray:
+        from scipy.ndimage import gaussian_filter
+
+        raw_map = torch.as_tensor(anomaly_map, dtype=torch.float32)[None, None]
+        resized = F.interpolate(
+            raw_map,
+            size=(self.OFFICIAL_INPUT_SIZE, self.OFFICIAL_INPUT_SIZE),
+            mode="bilinear",
+            align_corners=False,
+        )[0, 0].numpy()
+        return gaussian_filter(resized, sigma=self.OFFICIAL_GAUSSIAN_SIGMA).astype(np.float32)
+
+    def prepare_metric_mask(self, mask: np.ndarray) -> np.ndarray:
+        # The released target transform resizes masks with bicubic interpolation
+        # and evaluation thresholds them at 0.5.
+        binary_image = Image.fromarray((np.asarray(mask) > 0).astype(np.uint8) * 255)
+        resized = binary_image.resize(
+            (self.OFFICIAL_INPUT_SIZE, self.OFFICIAL_INPUT_SIZE),
+            resample=Image.Resampling.BICUBIC,
+        )
+        return (np.asarray(resized, dtype=np.float32) / 255.0 > 0.5).astype(np.float32)
+
+    def inference_provenance(self) -> Dict[str, Any]:
+        checkpoint_info = {
+            component: {
+                "path": str(path),
+                "size_bytes": path.stat().st_size if path.is_file() else None,
+                "sha256": _sha256_file(path) if path.is_file() else None,
+            }
+            for component, path in self.active_checkpoints.items()
+        }
+        return {
+            "model": "AF-CLIP+",
+            "result_name": self.model_name,
+            "shot": self.shot,
+            "reference_seed": self.reference_seed,
+            "target_dataset": self.active_dataset,
+            "source_checkpoint_dataset": self.active_source_dataset,
+            "checkpoint": checkpoint_info,
+            "support_images": {
+                category: [str(path) for path in paths]
+                for category, paths in self.support_paths.items()
+            },
+            "official_source_root": str(self.source_root) if self.source_root else None,
+            "official_source_commit": self.source_commit,
+            "expected_source_commit": OFFICIAL_AFCLIP_COMMIT,
+            "backbone": self.OFFICIAL_MODEL,
+            "input_size": self.OFFICIAL_INPUT_SIZE,
+            "feature_layers": list(self.OFFICIAL_FEATURE_LAYERS),
+            "memory_layers": list(self.OFFICIAL_MEMORY_LAYERS),
+            "spatial_aggregation_kernels": [1, 3, 5],
+            "prompt_weight": self.OFFICIAL_ALPHA,
+            "raw_map_size": 37,
+            "metric_map_size": self.OFFICIAL_INPUT_SIZE,
+            "gaussian_sigma": self.OFFICIAL_GAUSSIAN_SIGMA,
+            "support_policy": "normal target training images; no corruption",
+        }
+
+    def release(self) -> None:
+        self.support_paths = {}
+        self.active_checkpoints = {}
+        self.active_category = None
+        super().release()
+
+
 MODEL_REGISTRY: Dict[str, type] = {}
 
 
@@ -1093,6 +1828,8 @@ def register_model(name: str, wrapper_class: type) -> None:
 
 register_model("INP-Former", INPFormerWrapper)
 register_model("PromptAD", PromptADWrapper)
+register_model("AF-CLIP+", AFCLIPFewShotWrapper)
+register_model("APRIL-GAN", APRILGANFewShotWrapper)
 
 
 def get_model(
@@ -1108,15 +1845,22 @@ def get_model(
 
 
 __all__ = [
+    "AFCLIPFewShotWrapper",
+    "APRILGANFewShotWrapper",
+    "AFCLIP_DATASET_CATEGORIES",
     "INPFormerWrapper",
     "PromptADWrapper",
     "MODEL_REGISTRY",
     "OFFICIAL_CHECKPOINT_URLS",
     "OFFICIAL_INPFORMER_COMMIT",
     "OFFICIAL_PROMPTAD_COMMIT",
+    "OFFICIAL_AFCLIP_COMMIT",
+    "OFFICIAL_APRILGAN_COMMIT",
     "PROMPTAD_DATASET_CATEGORIES",
     "discover_official_checkpoints",
     "discover_promptad_checkpoints",
+    "discover_afclip_checkpoints",
+    "discover_aprilgan_checkpoints",
     "get_model",
     "normalize_dataset_name",
     "official_checkpoint_directory",

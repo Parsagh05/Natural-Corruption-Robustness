@@ -11,6 +11,69 @@ preprocessing, checkpoint, map postprocessing, and image-scoring rules.
   VisA (six dataset/checkpoint evaluations).
 - PromptAD: retrained class-specific CLS/SEG checkpoint pairs for 1-shot,
   2-shot, and 4-shot MVTec AD and VisA evaluation.
+- AF-CLIP+: official cross-dataset prompt/adaptor weights plus clean target
+  normal-image memory banks for 1-shot, 2-shot, and 4-shot evaluation.
+- APRIL-GAN: released cross-dataset projection weights plus official clean
+  target-normal memory banks for 1-shot, 2-shot, and 4-shot evaluation.
+
+## Paper-faithful APRIL-GAN inference
+
+[`kaggle_aprilgan.ipynb`](kaggle_aprilgan.ipynb) pins the official
+[`ByChelsea/VAND-APRIL-GAN`](https://github.com/ByChelsea/VAND-APRIL-GAN)
+source and consumes the two checkpoints already committed under its
+`exps/pretrained` directory. As in the released scripts, a MVTec target uses
+the VisA-trained checkpoint and a VisA target uses the MVTec-trained checkpoint.
+
+For each target category, the wrapper reproduces the official seeded
+`torch.randint` support selection, including sampling with replacement. Clean
+normal images populate four patch-feature memory banks at layers 6/12/18/24.
+The minimum cosine-distance maps are added to the zero-shot projected prompt
+map, and the image score averages the prompt probability with the
+class/condition-normalized maximum of the combined map. Support images remain
+clean across all corruption conditions. The notebook can run any subset of
+the 1-, 2-, and 4-shot settings and emits one standard artifact archive per
+shot and support seed.
+
+## Paper-faithful AF-CLIP+ inference
+
+[`kaggle_afclip.ipynb`](kaggle_afclip.ipynb) evaluates the few-shot extension
+from [`Faustinaqq/AF-CLIP`](https://github.com/Faustinaqq/AF-CLIP) at pinned
+commit `bb7edec4128a76f29cb573cd3002538bf250b2fe`. The official repository already
+contains `mvtec_{prompt,adaptor}.pt` and `visa_{prompt,adaptor}.pt`; AF-CLIP+
+does not train separate few-shot checkpoints. For a MVTec target it loads the
+VisA-trained components, and for a VisA target it loads the MVTec-trained
+components.
+
+For every target class, the wrapper deterministically selects the requested
+number of normal training images and creates the released multi-level memory
+bank. These reference images stay clean and fixed while corruptions are
+applied only to test images (and geometric transforms to their masks). The
+wrapper preserves the official ViT-L/14@336px backbone, 518 x 518 CLIP
+preprocessing, layers 6/12/18/24, spatial kernels 1/3/5, nearest-neighbour
+distance, `memory + 0.1 * prompt` score fusion, bilinear metric upsampling, and
+Gaussian smoothing with sigma 4. Raw artifacts retain the native 37 x 37 map.
+
+The paper averages five random support selections but does not publish their
+seeds. The notebook defaults to the explicit reproducible seed 111. Supplying
+multiple `REFERENCE_SEEDS` creates seed-qualified result names and archives so
+trials cannot overwrite each other.
+
+From the repository root, the equivalent CLI is:
+
+```bash
+python -m few_shot.scripts.run_afclip \
+  --mvtec-root /path/to/mvtec \
+  --visa-root /path/to/visa \
+  --afclip-root ../AF-CLIP \
+  --checkpoint-root ../AF-CLIP/weight \
+  --output-root outputs \
+  --shots 1 2 4 \
+  --reference-seeds 111
+```
+
+Each default shot produces `AF-CLIP+-<shot>-shot_artifacts.zip` with the same
+standard CSV, fine-grained CSV, per-image JSON, raw-score/map, metadata, and
+run-manifest contract used by the other few-shot models.
 
 ## Retraining PromptAD checkpoints
 

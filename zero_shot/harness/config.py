@@ -60,6 +60,7 @@ LEARNABLE_MODELS: List[str] = [
     "FiLo",
     "Tipsomaly",
     "AF-CLIP",
+    "APRIL-GAN",
     "FB-CLIP",
     "CoPS",
 ]
@@ -79,6 +80,7 @@ COMPLETED_MODELS: List[str] = [
     "AnomalyCLIP",
     "AA-CLIP",
     "AF-CLIP",
+    "APRIL-GAN",
     "FiLo",
     "Tipsomaly",
     "FB-CLIP",

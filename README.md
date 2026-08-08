@@ -8,14 +8,15 @@ Evaluation code and results for studying vision-language anomaly-detection model
 .
 |-- shared/       Corruption implementation and fixed dataset assignment plans
 |-- zero_shot/    Complete zero-shot evaluation pipeline, notebooks, tests, and results
-`-- few_shot/     Few-shot harness, INP-Former implementation, notebook, and tests
+`-- few_shot/     Few-shot harness, model implementations, notebooks, and tests
 ```
 
 Both evaluation modes use `shared/imagenet_c/` and the CSV files in
 `shared/corruption_plans/`, so corruption behavior and categorized assignments
 stay identical across shot modes. See [`zero_shot/README.md`](zero_shot/README.md)
 for zero-shot models and [`few_shot/README.md`](few_shot/README.md) for the
-paper-faithful INP-Former 1/2/4-shot suite on MVTec AD and VisA.
+paper-faithful INP-Former, PromptAD, AF-CLIP+, and APRIL-GAN 1/2/4-shot suites
+on MVTec AD and VisA.
 
 ## Setup and validation
 

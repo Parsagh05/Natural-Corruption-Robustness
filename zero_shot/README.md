@@ -7,6 +7,7 @@ Implemented model wrappers:
 - AnomalyCLIP
 - AA-CLIP
 - AF-CLIP
+- APRIL-GAN
 - FB-CLIP
 - FiLo
 - Tipsomaly
@@ -70,6 +71,7 @@ Notebook-specific external assets:
 | `kaggle_final_anomalyclip.ipynb` | `zqhang/AnomalyCLIP` | AnomalyCLIP `epoch_15.pth` prompt checkpoint |
 | `kaggle_final_aaclip.ipynb` | `Mwxinnn/AA-CLIP` | image/text adapter checkpoint directory and `ViT-L-14-336px.pt` |
 | `kaggle_final_afclip.ipynb` | `Faustinaqq/AF-CLIP` | Prompt/adaptor weights included upstream; CLIP backbone downloaded or supplied as input |
+| `kaggle_final_aprilgan.ipynb` | `ByChelsea/VAND-APRIL-GAN` | Cross-dataset `mvtec_pretrained.pth` / `visa_pretrained.pth` included upstream; OpenAI CLIP backbone downloaded or supplied as input |
 | `kaggle_final_fbclip.ipynb` | `Xi-Mu-Yu/FB-CLIP` | Cross-dataset `mvtec_epoch_1_model.pth` / `visa_epoch_2_model.pth` from the authors' public Google Drive folder; OpenAI CLIP backbone downloaded or supplied as input |
 | `kaggle_final_filo.ipynb` | `CASIA-LMC-Lab/FiLo` | Cross-dataset FiLo and fine-tuned Grounding DINO checkpoints downloaded from `FantasticGNU/FiLo`; OpenAI CLIP backbone downloaded automatically |
 | `kaggle_final_tipsomaly.ipynb` | `Alireza99Salehi/Tipsomaly` | Cross-dataset `learnable_params_2.pth` included upstream; TIPS-L/14-HR vision/text NPZ files and tokenizer downloaded from the official TIPS bucket or supplied as a Kaggle input |
@@ -107,6 +109,13 @@ score, and bilinear upsampling plus a sigma-4 Gaussian filter produces the
 518 x 518 metric map. The learned prompt checkpoints are in the upstream
 repository. The much larger TIPS backbone components are downloaded from the
 official Google Cloud bucket unless attached for an offline Kaggle rerun.
+
+APRIL-GAN uses the official cross-dataset protocol: the released VisA linear-
+projection checkpoint evaluates MVTec AD, while the released MVTec checkpoint
+evaluates VisA. The wrapper preserves the OpenAI ViT-L/14@336px backbone,
+518-pixel input, layers 6/12/18/24, prompt-ensemble image score, and the sum of
+four projected patch anomaly maps. Full-resolution official maps are used for
+metrics; compact 37 x 37 maps are stored in artifacts.
 
 The notebooks use Kaggle paths by design. Dataset mount variables are near the top of each evaluation cell and must match the attached Kaggle inputs.
 

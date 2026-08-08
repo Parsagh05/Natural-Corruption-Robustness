@@ -684,9 +684,354 @@ def run_promptad_evaluations(
         )
 
 
+def run_afclip_evaluations(
+    mvtec_root: Optional[str],
+    visa_root: Optional[str],
+    output_root: str,
+    afclip_root: str,
+    checkpoint_paths: Mapping[str, Mapping[str, str]],
+    shots: Sequence[int] = OFFICIAL_SHOTS,
+    datasets: Sequence[str] = ("mvtec", "visa"),
+    reference_seeds: Sequence[int] = (111,),
+    device: str = "cuda",
+    batch_size: int = 8,
+    corruption_types: Optional[Sequence[str]] = None,
+    severity_levels: Optional[Sequence[int]] = None,
+    categorized_corruptions: bool = True,
+    corruption_cache_root: Optional[str] = None,
+    corruption_cache_format: str = "png",
+    corruption_seed: int = 123,
+    include_clean: bool = True,
+    strict_source_commit: bool = True,
+    clip_download_dir: str = "",
+) -> None:
+    """Run AF-CLIP+ with clean target-normal support memory banks.
+
+    Each ``(shot, reference_seed)`` pair receives an independent result name
+    when multiple seeds are requested, preventing archives from overwriting
+    one another.  The paper reports five random trials but does not publish
+    their seeds, so the default is one explicit reproducible trial.
+    """
+    dataset_values = (datasets,) if isinstance(datasets, str) else datasets
+    selected_datasets = tuple(normalize_dataset_name(name) for name in dataset_values)
+    if not selected_datasets or len(set(selected_datasets)) != len(selected_datasets):
+        raise ValueError(
+            f"AF-CLIP+ datasets must be non-empty and unique: {selected_datasets}."
+        )
+
+    selected_shots = tuple(int(shot) for shot in shots)
+    if not selected_shots or len(set(selected_shots)) != len(selected_shots):
+        raise ValueError(f"AF-CLIP+ shot settings must be non-empty and unique: {selected_shots}.")
+    invalid_shots = sorted(set(selected_shots) - set(OFFICIAL_SHOTS))
+    if invalid_shots:
+        raise ValueError(f"AF-CLIP+ supports shots {OFFICIAL_SHOTS}; got {invalid_shots}.")
+
+    selected_reference_seeds = tuple(int(seed) for seed in reference_seeds)
+    if not selected_reference_seeds or len(set(selected_reference_seeds)) != len(selected_reference_seeds):
+        raise ValueError(
+            "AF-CLIP+ reference seeds must be non-empty and unique; got "
+            f"{selected_reference_seeds}."
+        )
+
+    source_root = Path(afclip_root).expanduser()
+    if not (
+        (source_root / "clip" / "clip.py").is_file()
+        and (source_root / "clip" / "model.py").is_file()
+    ):
+        raise FileNotFoundError(f"Official AF-CLIP source tree is incomplete: {source_root}")
+
+    normalized_checkpoints = {
+        normalize_dataset_name(dataset): {
+            str(component).lower(): str(path)
+            for component, path in components.items()
+        }
+        for dataset, components in checkpoint_paths.items()
+    }
+    for source_dataset in ("mvtec", "visa"):
+        components = normalized_checkpoints.get(source_dataset, {})
+        if set(components) != {"prompt", "adaptor"}:
+            raise KeyError(
+                f"AF-CLIP checkpoint mapping for {source_dataset} must contain "
+                "exactly prompt and adaptor files."
+            )
+        missing = [path for path in components.values() if not Path(path).expanduser().is_file()]
+        if missing:
+            raise FileNotFoundError(
+                "AF-CLIP checkpoint preflight failed. Missing:\n  - "
+                + "\n  - ".join(missing)
+            )
+
+    root_values = {"mvtec": mvtec_root, "visa": visa_root}
+    configs = build_dataset_configs(
+        mvtec_root=mvtec_root if "mvtec" in selected_datasets else None,
+        visa_root=visa_root if "visa" in selected_datasets else None,
+    )
+    config_by_dataset = {normalize_dataset_name(config.name): config for config in configs}
+    missing_datasets = [name for name in selected_datasets if name not in config_by_dataset]
+    if missing_datasets:
+        raise FileNotFoundError(
+            "AF-CLIP+ could not resolve selected dataset roots: "
+            + ", ".join(
+                f"{name}={root_values.get(name)}" for name in missing_datasets
+            )
+        )
+    resolved_dataset_roots = {
+        name: str(config_by_dataset[name].root_path)
+        for name in selected_datasets
+    }
+
+    allowed_corruptions = (
+        CATEGORIZED_CORRUPTION_TYPES if categorized_corruptions else CORRUPTION_TYPES
+    )
+    selected_corruptions = list(
+        corruption_types if corruption_types is not None else allowed_corruptions
+    )
+    if len(set(selected_corruptions)) != len(selected_corruptions):
+        raise ValueError(f"AF-CLIP+ corruption types must be unique: {selected_corruptions}.")
+    invalid_corruptions = sorted(set(selected_corruptions) - set(allowed_corruptions))
+    if invalid_corruptions:
+        raise ValueError(
+            f"Invalid AF-CLIP+ corruptions {invalid_corruptions}; choose from {allowed_corruptions}."
+        )
+    selected_severities = [
+        int(level) for level in (
+            severity_levels if severity_levels is not None else SEVERITY_LEVELS
+        )
+    ]
+    if len(set(selected_severities)) != len(selected_severities):
+        raise ValueError(f"AF-CLIP+ severity levels must be unique: {selected_severities}.")
+    invalid_severities = sorted(set(selected_severities) - set(SEVERITY_LEVELS))
+    if invalid_severities:
+        raise ValueError(
+            f"This benchmark supports severity levels {SEVERITY_LEVELS}; got {invalid_severities}."
+        )
+    if selected_corruptions and not selected_severities:
+        raise ValueError("Select at least one severity when corruptions are enabled.")
+    if not include_clean and not selected_corruptions:
+        raise ValueError("No AF-CLIP+ evaluation conditions were selected.")
+
+    plans = (
+        {name: str(corruption_plan_path(name)) for name in selected_datasets}
+        if categorized_corruptions else None
+    )
+    distinguish_seed = len(selected_reference_seeds) > 1
+    total_runs = len(selected_shots) * len(selected_reference_seeds)
+    run_index = 0
+    for shot in selected_shots:
+        for reference_seed in selected_reference_seeds:
+            run_index += 1
+            result_name = f"AF-CLIP+-{shot}-shot"
+            if distinguish_seed:
+                result_name += f"-seed-{reference_seed}"
+            pipeline_logger.info(
+                "Launching AF-CLIP+ suite %s/%s: %s-shot, support seed %s, datasets %s",
+                run_index,
+                total_runs,
+                shot,
+                reference_seed,
+                selected_datasets,
+            )
+            run_evaluation(
+                mvtec_root=mvtec_root if "mvtec" in selected_datasets else None,
+                visa_root=visa_root if "visa" in selected_datasets else None,
+                output_root=output_root,
+                models=["AF-CLIP+"],
+                model_kwargs={
+                    "AF-CLIP+": {
+                        "afclip_root": str(source_root),
+                        "checkpoint_paths": normalized_checkpoints,
+                        "dataset_roots": resolved_dataset_roots,
+                        "reference_seed": reference_seed,
+                        "result_name": result_name,
+                        "strict_source_commit": strict_source_commit,
+                        "clip_download_dir": clip_download_dir,
+                    }
+                },
+                shot=shot,
+                device=device,
+                dataset="both" if len(selected_datasets) == 2 else selected_datasets[0],
+                corruption_types=selected_corruptions,
+                severity_levels=selected_severities,
+                batch_size=batch_size,
+                corruption_cache_root=corruption_cache_root,
+                corruption_cache_format=corruption_cache_format,
+                categorized_corruptions=categorized_corruptions,
+                categorized_corruption_plans=plans,
+                corruption_seed=corruption_seed,
+                include_clean=include_clean,
+            )
+
+
+def run_aprilgan_evaluations(
+    mvtec_root: Optional[str],
+    visa_root: Optional[str],
+    output_root: str,
+    aprilgan_root: str,
+    checkpoint_paths: Mapping[str, str],
+    shots: Sequence[int] = OFFICIAL_SHOTS,
+    datasets: Sequence[str] = ("mvtec", "visa"),
+    reference_seeds: Sequence[int] = (42,),
+    device: str = "cuda",
+    batch_size: int = 1,
+    corruption_types: Optional[Sequence[str]] = None,
+    severity_levels: Optional[Sequence[int]] = None,
+    categorized_corruptions: bool = True,
+    corruption_cache_root: Optional[str] = None,
+    corruption_cache_format: str = "png",
+    corruption_seed: int = 123,
+    include_clean: bool = True,
+    strict_source_commit: bool = True,
+    clip_weight_path: str = "",
+    clip_download_dir: str = "",
+) -> None:
+    """Run APRIL-GAN's released few-shot memory-bank protocol."""
+    dataset_values = (datasets,) if isinstance(datasets, str) else datasets
+    selected_datasets = tuple(normalize_dataset_name(name) for name in dataset_values)
+    if not selected_datasets or len(set(selected_datasets)) != len(selected_datasets):
+        raise ValueError(
+            "APRIL-GAN datasets must be non-empty and unique; got "
+            f"{selected_datasets}."
+        )
+    selected_shots = tuple(int(shot) for shot in shots)
+    if (
+        not selected_shots
+        or len(set(selected_shots)) != len(selected_shots)
+        or set(selected_shots) - set(OFFICIAL_SHOTS)
+    ):
+        raise ValueError(
+            f"APRIL-GAN shots must be unique values from {OFFICIAL_SHOTS}; "
+            f"got {selected_shots}."
+        )
+    selected_seeds = tuple(int(seed) for seed in reference_seeds)
+    if not selected_seeds or len(set(selected_seeds)) != len(selected_seeds):
+        raise ValueError(
+            "APRIL-GAN reference seeds must be non-empty and unique; got "
+            f"{selected_seeds}."
+        )
+
+    source_root = Path(aprilgan_root).expanduser()
+    required_source = (
+        source_root / "open_clip" / "factory.py",
+        source_root / "model.py",
+        source_root / "prompt_ensemble.py",
+    )
+    missing_source = [str(path) for path in required_source if not path.is_file()]
+    if missing_source:
+        raise FileNotFoundError(
+            "Official APRIL-GAN source tree is incomplete. Missing:\n  - "
+            + "\n  - ".join(missing_source)
+        )
+
+    normalized_checkpoints = {
+        normalize_dataset_name(dataset): str(Path(path).expanduser().resolve())
+        for dataset, path in checkpoint_paths.items()
+    }
+    if set(normalized_checkpoints) != {"mvtec", "visa"}:
+        raise KeyError(
+            "APRIL-GAN checkpoint mapping must contain exactly mvtec and visa."
+        )
+    missing_checkpoints = [
+        path for path in normalized_checkpoints.values() if not Path(path).is_file()
+    ]
+    if missing_checkpoints:
+        raise FileNotFoundError(
+            "APRIL-GAN checkpoint preflight failed. Missing:\n  - "
+            + "\n  - ".join(missing_checkpoints)
+        )
+
+    configs = build_dataset_configs(
+        mvtec_root=mvtec_root if "mvtec" in selected_datasets else None,
+        visa_root=visa_root if "visa" in selected_datasets else None,
+    )
+    config_by_dataset = {
+        normalize_dataset_name(config.name): config for config in configs
+    }
+    missing_datasets = [
+        dataset for dataset in selected_datasets if dataset not in config_by_dataset
+    ]
+    if missing_datasets:
+        raise FileNotFoundError(
+            "APRIL-GAN could not resolve selected dataset roots: "
+            + ", ".join(missing_datasets)
+        )
+    resolved_roots = {
+        dataset: str(config_by_dataset[dataset].root_path)
+        for dataset in selected_datasets
+    }
+    plans = (
+        {dataset: str(corruption_plan_path(dataset)) for dataset in selected_datasets}
+        if categorized_corruptions
+        else None
+    )
+    selected_corruptions = list(
+        corruption_types
+        if corruption_types is not None
+        else (
+            CATEGORIZED_CORRUPTION_TYPES
+            if categorized_corruptions
+            else CORRUPTION_TYPES
+        )
+    )
+    selected_severities = list(
+        severity_levels if severity_levels is not None else SEVERITY_LEVELS
+    )
+
+    distinguish_seed = len(selected_seeds) > 1
+    total_runs = len(selected_shots) * len(selected_seeds)
+    run_index = 0
+    for shot in selected_shots:
+        for reference_seed in selected_seeds:
+            run_index += 1
+            result_name = f"APRIL-GAN-{shot}-shot"
+            if distinguish_seed:
+                result_name += f"-seed-{reference_seed}"
+            pipeline_logger.info(
+                "Launching APRIL-GAN suite %s/%s: %s-shot, support seed %s, datasets %s",
+                run_index,
+                total_runs,
+                shot,
+                reference_seed,
+                selected_datasets,
+            )
+            run_evaluation(
+                mvtec_root=mvtec_root if "mvtec" in selected_datasets else None,
+                visa_root=visa_root if "visa" in selected_datasets else None,
+                output_root=output_root,
+                models=["APRIL-GAN"],
+                model_kwargs={
+                    "APRIL-GAN": {
+                        "aprilgan_root": str(source_root),
+                        "checkpoint_paths": normalized_checkpoints,
+                        "dataset_roots": resolved_roots,
+                        "reference_seed": reference_seed,
+                        "result_name": result_name,
+                        "strict_source_commit": strict_source_commit,
+                        "clip_weight_path": clip_weight_path,
+                        "clip_download_dir": clip_download_dir,
+                    }
+                },
+                shot=shot,
+                device=device,
+                dataset=(
+                    "both" if len(selected_datasets) == 2 else selected_datasets[0]
+                ),
+                corruption_types=selected_corruptions,
+                severity_levels=selected_severities,
+                batch_size=batch_size,
+                corruption_cache_root=corruption_cache_root,
+                corruption_cache_format=corruption_cache_format,
+                categorized_corruptions=categorized_corruptions,
+                categorized_corruption_plans=plans,
+                corruption_seed=corruption_seed,
+                include_clean=include_clean,
+            )
+
+
 __all__ = [
     "RobustnessRunner",
     "run_evaluation",
     "run_official_evaluations",
     "run_promptad_evaluations",
+    "run_afclip_evaluations",
+    "run_aprilgan_evaluations",
 ]

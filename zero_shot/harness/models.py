@@ -8,8 +8,11 @@ Each model wrapper intercepts the inference pipeline to extract:
 """
 
 from abc import ABC, abstractmethod
+import hashlib
 import importlib
+import math
 import os
+import shutil
 import sys
 from types import SimpleNamespace
 from typing import Tuple, Optional, Dict, Any, Sequence
@@ -1824,6 +1827,422 @@ class FiLoWrapper(BaseModelWrapper):
         super().release()
 
 
+class APRILGANWrapper(BaseModelWrapper):
+    """Paper-faithful wrapper for ByChelsea/VAND-APRIL-GAN.
+
+    APRIL-GAN learns four linear projections on one industrial benchmark and
+    evaluates them on the other benchmark.  The CLIP image score remains
+    prompt-only while the pixel map is the sum of the four projected patch
+    maps.  The wrapper returns the official 518 x 518 map for metrics and
+    archives a compact 37 x 37 representation.
+    """
+
+    OFFICIAL_SOURCE = "ByChelsea/VAND-APRIL-GAN"
+    OFFICIAL_SOURCE_COMMIT = "f13b8a634e04f9fde8fa03db125b25af5695d8e1"
+    OFFICIAL_MODEL = "ViT-L-14-336"
+    OFFICIAL_IMAGE_SIZE = 518
+    OFFICIAL_FEATURES = (6, 12, 18, 24)
+    OPENAI_CLIP_FILENAME = "ViT-L-14-336px.pt"
+    OPENAI_CLIP_SHA256 = (
+        "3035c92b350959924f9f00213499208652fc7ea050643e8b385c2dac08641f02"
+    )
+    fail_on_inference_error = True
+
+    def __init__(
+        self,
+        aprilgan_root: str = "",
+        checkpoint_path: str = "",
+        checkpoint_paths: Optional[Dict[str, str]] = None,
+        weight_dataset: str = "",
+        clip_weight_path: str = "",
+        clip_download_dir: str = "",
+        image_size: int = OFFICIAL_IMAGE_SIZE,
+        features_list: Optional[Sequence[int]] = None,
+        strict_source_commit: bool = False,
+        result_name: str = "APRIL-GAN",
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(result_name, **kwargs)
+        self.aprilgan_root = aprilgan_root
+        self.checkpoint_path = checkpoint_path
+        self.checkpoint_paths = {
+            self._normalize_dataset_name(name): str(path)
+            for name, path in (checkpoint_paths or {}).items()
+        }
+        self.weight_dataset = (
+            self._normalize_dataset_name(weight_dataset) if weight_dataset else ""
+        )
+        self.clip_weight_path = clip_weight_path
+        self.clip_download_dir = clip_download_dir
+        self.image_size = int(image_size)
+        self.features_list = list(_as_tuple(features_list, self.OFFICIAL_FEATURES))
+        self.strict_source_commit = bool(strict_source_commit)
+        self.preprocess = None
+        self.linear_layer = None
+        self.tokenizer = None
+        self.source_root: Optional[Path] = None
+        self.source_commit: Optional[str] = None
+        self.active_target_dataset: Optional[str] = None
+        self.active_weight_dataset: Optional[str] = None
+        self.active_checkpoint: Optional[Path] = None
+        self._prompt_encoder = None
+        self._text_features: Dict[str, torch.Tensor] = {}
+
+    @staticmethod
+    def _normalize_dataset_name(name: str) -> str:
+        compact = "".join(character for character in str(name).lower() if character.isalnum())
+        aliases = {
+            "mvtec": "mvtec",
+            "mvtecad": "mvtec",
+            "mvtecadataset": "mvtec",
+            "visa": "visa",
+        }
+        if compact not in aliases:
+            raise ValueError(
+                "APRIL-GAN supports MVTec AD and VisA; got " f"{name!r}."
+            )
+        return aliases[compact]
+
+    def _find_source_root(self) -> Path:
+        harness_dir = Path(__file__).resolve().parent
+        candidates = [
+            self.aprilgan_root,
+            os.environ.get("APRILGAN_ROOT"),
+            self.kwargs.get("model_root"),
+            "VAND-APRIL-GAN",
+            "../VAND-APRIL-GAN",
+            str(harness_dir.parent / "VAND-APRIL-GAN"),
+            str(harness_dir.parent.parent / "VAND-APRIL-GAN"),
+        ]
+        for candidate in candidates:
+            path = _resolve_existing_path(candidate)
+            if (
+                path
+                and (path / "open_clip" / "factory.py").is_file()
+                and (path / "model.py").is_file()
+                and (path / "prompt_ensemble.py").is_file()
+            ):
+                return path.resolve()
+        raise FileNotFoundError(
+            "Could not locate ByChelsea/VAND-APRIL-GAN. Pass "
+            "aprilgan_root=... or set APRILGAN_ROOT."
+        )
+
+    @staticmethod
+    def _prepare_imports(root: Path) -> None:
+        root_string = str(root)
+        if root_string in sys.path:
+            sys.path.remove(root_string)
+        sys.path.insert(0, root_string)
+        importlib.invalidate_caches()
+        # The official repository vendors and imports a top-level open_clip
+        # package and two generic top-level modules. Avoid silently reusing a
+        # package imported by a different anomaly-detection repository.
+        for module_name in list(sys.modules):
+            if (
+                module_name == "open_clip"
+                or module_name.startswith("open_clip.")
+                or module_name in {"model", "prompt_ensemble"}
+            ):
+                sys.modules.pop(module_name, None)
+
+    @staticmethod
+    def _git_commit(root: Path) -> Optional[str]:
+        head = root / ".git" / "HEAD"
+        if not head.is_file():
+            return None
+        value = head.read_text(encoding="utf-8").strip()
+        if value.startswith("ref:"):
+            ref_path = root / ".git" / value.split(":", 1)[1].strip()
+            if ref_path.is_file():
+                return ref_path.read_text(encoding="utf-8").strip()
+            packed_refs = root / ".git" / "packed-refs"
+            if packed_refs.is_file():
+                ref_name = value.split(":", 1)[1].strip()
+                for line in packed_refs.read_text(encoding="utf-8").splitlines():
+                    if line and not line.startswith(("#", "^")):
+                        commit, name = line.split(" ", 1)
+                        if name == ref_name:
+                            return commit
+            return None
+        return value
+
+    def _prepare_clip_cache(self, root: Path) -> str:
+        cache_dir = Path(
+            self.clip_download_dir
+            or os.environ.get("APRILGAN_CLIP_DOWNLOAD_DIR", "")
+            or root / "download" / "clip"
+        ).expanduser()
+        supplied = _resolve_existing_path(
+            self.clip_weight_path or os.environ.get("APRILGAN_CLIP_WEIGHT")
+        )
+        if supplied:
+            if not supplied.is_file():
+                raise FileNotFoundError(f"APRIL-GAN CLIP weight is not a file: {supplied}")
+            digest_object = hashlib.sha256()
+            with supplied.open("rb") as file_obj:
+                for chunk in iter(lambda: file_obj.read(1024 * 1024), b""):
+                    digest_object.update(chunk)
+            digest = digest_object.hexdigest()
+            if digest != self.OPENAI_CLIP_SHA256:
+                raise RuntimeError(
+                    "APRIL-GAN requires the official OpenAI ViT-L/14@336px "
+                    f"weight; SHA-256 mismatch for {supplied}."
+                )
+            cache_dir.mkdir(parents=True, exist_ok=True)
+            target = cache_dir / self.OPENAI_CLIP_FILENAME
+            if supplied.resolve() != target.resolve() and not target.is_file():
+                shutil.copy2(supplied, target)
+        return str(cache_dir)
+
+    def load_model(self) -> None:
+        if self.image_size != self.OFFICIAL_IMAGE_SIZE:
+            raise ValueError(
+                f"Official APRIL-GAN inference requires image_size=518, got {self.image_size}."
+            )
+        if tuple(self.features_list) != self.OFFICIAL_FEATURES:
+            raise ValueError(
+                "Official APRIL-GAN inference requires features_list="
+                f"{list(self.OFFICIAL_FEATURES)}, got {self.features_list}."
+            )
+
+        root = self._find_source_root()
+        self._prepare_imports(root)
+        try:
+            open_clip_module = importlib.import_module("open_clip")
+            linear_module = importlib.import_module("model")
+            prompt_module = importlib.import_module("prompt_ensemble")
+        except ImportError as exc:
+            raise ImportError(
+                "Failed to import the official APRIL-GAN source. Install the "
+                "notebook dependencies and keep its vendored open_clip folder intact."
+            ) from exc
+
+        clip_cache = self._prepare_clip_cache(root)
+        model, _, preprocess = open_clip_module.create_model_and_transforms(
+            self.OFFICIAL_MODEL,
+            self.image_size,
+            pretrained="openai",
+            cache_dir=clip_cache,
+        )
+        config = open_clip_module.get_model_config(self.OFFICIAL_MODEL)
+        if config is None:
+            raise RuntimeError("APRIL-GAN's ViT-L-14-336 model config is unavailable.")
+        linear_layer = linear_module.LinearLayer(
+            config["vision_cfg"]["width"],
+            config["embed_dim"],
+            len(self.features_list),
+            self.OFFICIAL_MODEL,
+        )
+
+        self.model = model.to(self.device).eval()
+        self.linear_layer = linear_layer.to(self.device).eval()
+        for parameter in self.model.parameters():
+            parameter.requires_grad_(False)
+        for parameter in self.linear_layer.parameters():
+            parameter.requires_grad_(False)
+        self.preprocess = preprocess
+        self.tokenizer = open_clip_module.get_tokenizer(self.OFFICIAL_MODEL)
+        self._prompt_encoder = prompt_module.encode_text_with_prompt_ensemble
+        self.source_root = root
+        self.source_commit = self._git_commit(root)
+        if self.strict_source_commit and self.source_commit != self.OFFICIAL_SOURCE_COMMIT:
+            raise RuntimeError(
+                "APRIL-GAN source commit mismatch: expected "
+                f"{self.OFFICIAL_SOURCE_COMMIT}, found {self.source_commit}."
+            )
+
+    def _checkpoint_candidates(self, source_dataset: str) -> Sequence[Path]:
+        candidates = []
+        mapped = self.checkpoint_paths.get(source_dataset)
+        if mapped:
+            candidates.append(Path(mapped).expanduser())
+        explicit = _resolve_existing_path(self.checkpoint_path)
+        if explicit:
+            if explicit.is_dir():
+                candidates.append(explicit / f"{source_dataset}_pretrained.pth")
+            elif not self.weight_dataset or self.weight_dataset == source_dataset:
+                candidates.append(explicit)
+        if self.source_root:
+            candidates.append(
+                self.source_root / "exps" / "pretrained" / f"{source_dataset}_pretrained.pth"
+            )
+        return candidates
+
+    def prepare_for_dataset(self, dataset_name: str) -> None:
+        if self.model is None or self.linear_layer is None:
+            raise RuntimeError("load_model() must be called before selecting APRIL-GAN weights.")
+        target_dataset = self._normalize_dataset_name(dataset_name)
+        source_dataset = "visa" if target_dataset == "mvtec" else "mvtec"
+        if self.weight_dataset and self.weight_dataset != source_dataset:
+            raise RuntimeError(
+                "APRIL-GAN zero-shot checkpoint leakage: target "
+                f"{target_dataset} requires {source_dataset}-trained weights, not "
+                f"{self.weight_dataset}."
+            )
+        checkpoint = next(
+            (path.resolve() for path in self._checkpoint_candidates(source_dataset) if path.is_file()),
+            None,
+        )
+        if checkpoint is None:
+            raise FileNotFoundError(
+                f"Could not locate APRIL-GAN's {source_dataset}_pretrained.pth. "
+                "The released files should be under exps/pretrained in the official clone."
+            )
+        try:
+            payload = torch.load(checkpoint, map_location="cpu", weights_only=True)
+        except TypeError:
+            payload = torch.load(checkpoint, map_location="cpu")
+        if not isinstance(payload, dict) or "trainable_linearlayer" not in payload:
+            raise KeyError(
+                f"APRIL-GAN checkpoint lacks trainable_linearlayer: {checkpoint}"
+            )
+        self.linear_layer.load_state_dict(payload["trainable_linearlayer"], strict=True)
+        self.linear_layer.to(self.device).eval()
+        self.active_target_dataset = target_dataset
+        self.active_weight_dataset = source_dataset
+        self.active_checkpoint = checkpoint
+
+    def _category_text_features(self, category: str) -> torch.Tensor:
+        if not category:
+            raise ValueError("APRIL-GAN inference requires a category name.")
+        if category not in self._text_features:
+            if self._prompt_encoder is None or self.tokenizer is None:
+                raise RuntimeError("APRIL-GAN prompt encoder is not loaded.")
+            with torch.inference_mode():
+                encoded = self._prompt_encoder(
+                    self.model, [category], self.tokenizer, self.device
+                )[category]
+            self._text_features[category] = encoded
+        return self._text_features[category]
+
+    def _preprocess_batch(self, images: Sequence[Image.Image]) -> torch.Tensor:
+        if self.preprocess is None:
+            raise RuntimeError("APRIL-GAN preprocessing is not loaded.")
+        if not images:
+            return torch.empty((0, 3, self.image_size, self.image_size), device=self.device)
+        if not all(isinstance(image, Image.Image) for image in images):
+            raise TypeError("APRILGANWrapper.forward_raw_batch expects PIL images.")
+        return torch.stack(
+            [self.preprocess(image.convert("RGB")) for image in images]
+        ).to(self.device, non_blocking=True)
+
+    def _zero_shot_forward_tensor(
+        self, image_tensor: torch.Tensor, category: str
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        if self.model is None or self.linear_layer is None:
+            raise RuntimeError("APRIL-GAN model is not ready for inference.")
+        text_features = self._category_text_features(category)
+        image_features, patch_tokens = self.model.encode_image(
+            image_tensor, self.features_list
+        )
+        image_features = F.normalize(image_features, dim=-1)
+        image_scores = (100.0 * image_features @ text_features).softmax(dim=-1)[:, 1]
+
+        projected_tokens = self.linear_layer(patch_tokens)
+        anomaly_map = torch.zeros(
+            (image_tensor.shape[0], self.image_size, self.image_size),
+            dtype=image_tensor.dtype,
+            device=image_tensor.device,
+        )
+        for tokens in projected_tokens:
+            tokens = F.normalize(tokens, dim=-1)
+            logits = 100.0 * tokens @ text_features
+            side = int(round(math.sqrt(logits.shape[1])))
+            if side * side != logits.shape[1]:
+                raise ValueError(
+                    f"APRIL-GAN patch count is not square: {logits.shape[1]}."
+                )
+            logits = logits.permute(0, 2, 1).reshape(-1, 2, side, side)
+            logits = F.interpolate(
+                logits,
+                size=(self.image_size, self.image_size),
+                mode="bilinear",
+                align_corners=True,
+            )
+            anomaly_map = anomaly_map + logits.softmax(dim=1)[:, 1]
+        return image_scores, anomaly_map
+
+    def forward_raw(
+        self, image: Image.Image, category: str = ""
+    ) -> Tuple[float, np.ndarray]:
+        scores, maps = self.forward_raw_batch([image], category=category)
+        return float(scores[0]), maps[0]
+
+    def forward_raw_batch(
+        self, images: Sequence[Image.Image], category: str = ""
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        if self.active_checkpoint is None:
+            raise RuntimeError("prepare_for_dataset() must run before APRIL-GAN inference.")
+        image_tensor = self._preprocess_batch(images)
+        if image_tensor.shape[0] == 0:
+            return (
+                np.zeros((0,), dtype=np.float32),
+                np.zeros((0, self.image_size, self.image_size), dtype=np.float32),
+            )
+        with torch.inference_mode(), torch.autocast(
+            device_type="cuda", enabled=str(self.device).startswith("cuda")
+        ):
+            scores, maps = self._zero_shot_forward_tensor(image_tensor, category)
+        return (
+            scores.float().cpu().numpy().astype(np.float32),
+            maps.float().cpu().numpy().astype(np.float32),
+        )
+
+    def prepare_metric_map(self, anomaly_map: np.ndarray) -> np.ndarray:
+        array = np.asarray(anomaly_map, dtype=np.float32)
+        if array.shape != (self.image_size, self.image_size):
+            tensor = torch.from_numpy(array)[None, None]
+            array = F.interpolate(
+                tensor,
+                size=(self.image_size, self.image_size),
+                mode="bilinear",
+                align_corners=True,
+            )[0, 0].numpy()
+        return np.asarray(array, dtype=np.float32)
+
+    def prepare_artifact_maps(self, anomaly_maps: np.ndarray) -> np.ndarray:
+        tensor = torch.as_tensor(anomaly_maps, dtype=torch.float32)[:, None]
+        compact = F.interpolate(
+            tensor,
+            size=(self.image_size // 14, self.image_size // 14),
+            mode="bilinear",
+            align_corners=True,
+        )[:, 0]
+        return compact.cpu().numpy().astype(np.float32)
+
+    def inference_provenance(self) -> Dict[str, Any]:
+        checkpoint = self.active_checkpoint
+        return {
+            "model": "APRIL-GAN",
+            "implementation": self.OFFICIAL_SOURCE,
+            "official_source_root": str(self.source_root or ""),
+            "official_source_commit": self.source_commit,
+            "expected_source_commit": self.OFFICIAL_SOURCE_COMMIT,
+            "target_dataset": self.active_target_dataset,
+            "source_checkpoint_dataset": self.active_weight_dataset,
+            "checkpoint": {
+                "path": str(checkpoint or ""),
+                "size_bytes": checkpoint.stat().st_size if checkpoint else None,
+            },
+            "backbone": "OpenAI ViT-L/14@336px",
+            "input_size": self.image_size,
+            "feature_layers": self.features_list,
+            "raw_metric_map_size": self.image_size,
+            "artifact_map_size": self.image_size // 14,
+            "map_fusion": "sum of four projected text-probability maps",
+            "image_score": "abnormal prompt probability",
+        }
+
+    def release(self) -> None:
+        self.preprocess = None
+        self.linear_layer = None
+        self.tokenizer = None
+        self._prompt_encoder = None
+        self._text_features = {}
+        super().release()
+
+
 class AFCLIPWrapper(BaseModelWrapper):
     """Wrapper for the official AF-CLIP zero-shot inference implementation."""
 
@@ -2658,6 +3077,7 @@ MODEL_REGISTRY: Dict[str, type] = {
     "FiLo": FiLoWrapper,
     "Tipsomaly": TipsomalyWrapper,
     "AF-CLIP": AFCLIPWrapper,
+    "APRIL-GAN": APRILGANWrapper,
     "FB-CLIP": FBCLIPWrapper,
     "CoPS": CoPSWrapper,
     "WinCLIP": WinCLIPWrapper,
